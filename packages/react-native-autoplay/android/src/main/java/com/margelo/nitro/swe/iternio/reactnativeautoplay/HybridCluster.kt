@@ -22,8 +22,8 @@ class HybridCluster : HybridClusterSpec() {
         val callbacks = listeners.getOrPut(eventType) { CopyOnWriteArrayList() }
         callbacks.add(callback)
 
-        val queuedClusterIds = eventQueue[eventType].orEmpty()
-        val connectedClusterIds =
+        val queuedClusterIds: Array<String> = eventQueue[eventType] ?: emptyArray()
+        val connectedClusterIds: Array<String> =
             if (eventType == ClusterEventName.DIDCONNECTWITHWINDOW) {
                 AndroidAutoSession.getClusterSessions()
             } else {
