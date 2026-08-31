@@ -47,14 +47,12 @@ class TemplateStore {
     func removeSearchTemplates(
         matching templates: [String: CPSearchTemplate]
     ) -> [String] {
-        let matchingTemplateIds = templates.compactMap {
-            templateId,
-            template in
-            guard store[templateId]?.getTemplate() === template else {
-                return nil
-            }
+        var matchingTemplateIds: [String] = []
 
-            return templateId
+        for (templateId, template) in templates {
+            if store[templateId]?.getTemplate() === template {
+                matchingTemplateIds.append(templateId)
+            }
         }
 
         removeTemplates(templateIds: matchingTemplateIds)
