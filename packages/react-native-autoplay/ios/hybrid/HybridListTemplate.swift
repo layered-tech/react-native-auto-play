@@ -6,16 +6,19 @@
 //
 
 import NitroModules
+import UIKit
 
 class HybridListTemplate: HybridListTemplateSpec {
     func createListTemplate(config: ListTemplateConfig) throws {
-        let template = ListTemplate(config: config)
+        try RootModule.performOnMainActor {
+            let template = ListTemplate(config: config)
 
-        try RootModule.withTemplateStore { templateStore in
-            templateStore.addTemplate(
-                template: template,
-                templateId: config.id
-            )
+            try RootModule.withTemplateStore { templateStore in
+                templateStore.addTemplate(
+                    template: template,
+                    templateId: config.id
+                )
+            }
         }
     }
 
@@ -25,6 +28,14 @@ class HybridListTemplate: HybridListTemplateSpec {
     ) throws -> Promise<Void> {
         return Promise.async {
             try await MainActor.run {
+                let backgroundTask = UIApplication.shared.beginBackgroundTask(
+                    withName: "CarPlay list update"
+                )
+
+                defer {
+                    UIApplication.shared.endBackgroundTask(backgroundTask)
+                }
+
                 try RootModule.withAutoPlayTemplate(templateId: templateId) {
                     (template: ListTemplate) in
                     template.updateSections(sections: sections)

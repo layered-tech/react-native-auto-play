@@ -9,10 +9,12 @@ import CarPlay
 class TemplateStore {
     private var store: [String: AutoPlayTemplate] = [:]
 
+    @MainActor
     func getCPTemplate(templateId key: String) -> CPTemplate? {
         return store[key]?.getTemplate()
     }
 
+    @MainActor
     func getTemplate(templateId: String) throws -> AutoPlayTemplate {
         if let template = store[templateId] {
             return template
@@ -20,33 +22,40 @@ class TemplateStore {
         throw AutoPlayError.templateNotFound(templateId)
     }
 
+    @MainActor
     func addTemplate(template: AutoPlayTemplate, templateId: String) {
         store[templateId] = template
     }
 
+    @MainActor
     func removeTemplate(templateId: String) {
         store[templateId]?.onPopped()
 
         store.removeValue(forKey: templateId)
     }
 
+    @MainActor
     func removeTemplates(templateIds: [String]) {
-        templateIds.forEach { templateId in
+        for templateId in templateIds {
             store[templateId]?.onPopped()
         }
 
         store = store.filter { !templateIds.contains($0.key) }
     }
 
+    @MainActor
     func purge() {
         store = store.filter { !($0.value.getTemplate() is CPSearchTemplate) }
     }
 
     @MainActor
     func traitCollectionDidChange() {
-        store.values.forEach { template in template.traitCollectionDidChange() }
+        for template in store.values {
+            template.traitCollectionDidChange()
+        }
     }
 
+    @MainActor
     func disconnect() {
         store = [:]
     }

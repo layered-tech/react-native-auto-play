@@ -2,7 +2,6 @@ package com.margelo.nitro.swe.iternio.reactnativeautoplay
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ComponentName
@@ -18,21 +17,23 @@ import androidx.car.app.CarAppService
 import androidx.car.app.Session
 import androidx.car.app.SessionInfo
 import androidx.car.app.notification.CarAppExtender
+import androidx.car.app.notification.CarNotificationManager
 import androidx.car.app.validation.HostValidator
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import com.facebook.react.bridge.LifecycleEventListener
-import com.margelo.nitro.NitroModules
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.AppInfo
 
 class AndroidAutoService : CarAppService() {
     private lateinit var notificationManager: NotificationManager
+    private lateinit var carNotificationManager: CarNotificationManager
 
     private var isServiceBound = false
-    private var isSessionStarted = false
-    private var isReactAppStarted = false
+    private var hasNotificationContent = false
+    private var lastNotificationTitle: String? = null
+    private var lastNotificationText: String? = null
+    private var lastNotificationIcon: Bitmap? = null
 
     @SuppressLint("PrivateResource")
     override fun createHostValidator(): HostValidator {
@@ -48,9 +49,8 @@ class AndroidAutoService : CarAppService() {
         super.onCreate()
         instance = this
 
-        NitroModules.applicationContext?.addLifecycleEventListener(reactLifecycleObserver)
-
         notificationManager = getSystemService(NotificationManager::class.java)
+        carNotificationManager = CarNotificationManager.from(this)
         val appLabel = AppInfo.getApplicationLabel(this)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -79,36 +79,14 @@ class AndroidAutoService : CarAppService() {
         instance = null
 
         stopForeground(STOP_FOREGROUND_REMOVE)
-
-        NitroModules.applicationContext?.removeLifecycleEventListener(reactLifecycleObserver)
-    }
-
-    private val reactLifecycleObserver = object : LifecycleEventListener {
-        override fun onHostResume() {
-            isReactAppStarted = true
-        }
-
-        override fun onHostPause() {
-            isReactAppStarted = false
-        }
-
-        override fun onHostDestroy() {
-            stopSelf()
-        }
     }
 
     private val sessionLifecycleObserver = object : DefaultLifecycleObserver {
         override fun onCreate(owner: LifecycleOwner) {
+            this@AndroidAutoService.startForeground()
+
             val serviceIntent = Intent(applicationContext, HeadlessTaskService::class.java)
             bindService(serviceIntent, connection, BIND_AUTO_CREATE)
-        }
-
-        override fun onResume(owner: LifecycleOwner) {
-            isSessionStarted = true
-        }
-
-        override fun onPause(owner: LifecycleOwner) {
-            isSessionStarted = false
         }
 
         override fun onDestroy(owner: LifecycleOwner) {
@@ -133,10 +111,12 @@ class AndroidAutoService : CarAppService() {
         }
     }
 
-    private fun createNotification(
+    private fun createNotificationBuilder(
         title: String?, text: String?, largeIcon: Bitmap?
-    ): Notification {
-        val notificationCategory = if (BuildConfig.IS_NAVIGATION_APP) {
+    ): NotificationCompat.Builder {
+        val hasNavigationContent =
+            BuildConfig.IS_NAVIGATION_APP && (title != null || text != null || largeIcon != null)
+        val notificationCategory = if (hasNavigationContent) {
             NotificationCompat.CATEGORY_NAVIGATION
         } else {
             NotificationCompat.CATEGORY_SERVICE
@@ -144,11 +124,15 @@ class AndroidAutoService : CarAppService() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification).setOngoing(true)
             .setCategory(notificationCategory).setOnlyAlertOnce(true)
-            .setWhen(System.currentTimeMillis()).setPriority(NotificationManager.IMPORTANCE_LOW)
-            .extend(
-                CarAppExtender.Builder().setImportance(NotificationManagerCompat.IMPORTANCE_LOW)
-                    .build()
-            ).apply {
+            .setWhen(System.currentTimeMillis()).setPriority(NotificationCompat.PRIORITY_LOW)
+            .apply {
+                if (hasNavigationContent) {
+                    extend(
+                        CarAppExtender.Builder()
+                            .setImportance(NotificationManagerCompat.IMPORTANCE_LOW)
+                            .build()
+                    )
+                }
                 title?.let {
                     setContentTitle(it)
                 }
@@ -159,7 +143,7 @@ class AndroidAutoService : CarAppService() {
                 largeIcon?.let {
                     setLargeIcon(it)
                 }
-            }.build()
+            }
     }
 
     fun startForeground() {
@@ -175,16 +159,66 @@ class AndroidAutoService : CarAppService() {
 
         try {
             startForeground(
-                NOTIFICATION_ID, createNotification(null, null, null)
+                NOTIFICATION_ID, createNotificationBuilder(null, null, null).build()
             )
+            rememberNotificationContent(null, null, null)
         } catch (e: SecurityException) {
             Log.e(TAG, "failed to start foreground service", e)
         }
     }
 
     fun notify(title: String?, text: String?, icon: Bitmap?) {
-        val notification = createNotification(title, text, icon)
-        notificationManager.notify(NOTIFICATION_ID, notification)
+        if (notificationContentMatches(title, text, icon)) {
+            return
+        }
+
+        val notificationBuilder = createNotificationBuilder(title, text, icon)
+        if (BuildConfig.IS_NAVIGATION_APP && (title != null || text != null || icon != null)) {
+            carNotificationManager.notify(NOTIFICATION_ID, notificationBuilder)
+        } else {
+            notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
+        }
+        rememberNotificationContent(title, text, icon)
+    }
+
+    fun clearNavigationNotification() {
+        clearNotificationContent()
+        notify(null, null, null)
+    }
+
+    private fun notificationContentMatches(
+        title: String?, text: String?, icon: Bitmap?
+    ): Boolean {
+        if (!hasNotificationContent || title != lastNotificationTitle || text != lastNotificationText) {
+            return false
+        }
+
+        val previousIcon = lastNotificationIcon
+        return when {
+            icon === previousIcon -> true
+            icon == null || previousIcon == null -> false
+            else -> try {
+                icon.sameAs(previousIcon)
+            } catch (_: IllegalArgumentException) {
+                false
+            }
+        }
+    }
+
+    private fun rememberNotificationContent(
+        title: String?, text: String?, icon: Bitmap?
+    ) {
+        hasNotificationContent = true
+        lastNotificationTitle = title
+        lastNotificationText = text
+        lastNotificationIcon = icon
+    }
+
+    private fun clearNotificationContent() {
+        hasNotificationContent = false
+        lastNotificationTitle = null
+        lastNotificationText = null
+        lastNotificationIcon = null
     }
 
     companion object {

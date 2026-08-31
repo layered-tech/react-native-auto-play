@@ -6,17 +6,32 @@
 //
 
 import CarPlay
+import Foundation
 import NitroModules
 
 class HybridMapTemplate: HybridMapTemplateSpec {
-    func createMapTemplate(config: MapTemplateConfig) throws {
-        let template = MapTemplate(config: config)
+    private func withMapTemplateOnMainActor(
+        templateId: String,
+        perform action: @MainActor @escaping (MapTemplate) throws -> Void
+    ) throws {
+        try RootModule.performOnMainActor {
+            try RootModule.withAutoPlayTemplate(templateId: templateId) {
+                (template: MapTemplate) in
+                try action(template)
+            }
+        }
+    }
 
-        try RootModule.withTemplateStore { templateStore in
-            templateStore.addTemplate(
-                template: template,
-                templateId: config.id
-            )
+    func createMapTemplate(config: MapTemplateConfig) throws {
+        try RootModule.performOnMainActor {
+            let template = MapTemplate(config: config)
+
+            try RootModule.withTemplateStore { templateStore in
+                templateStore.addTemplate(
+                    template: template,
+                    templateId: config.id
+                )
+            }
         }
     }
 
@@ -37,7 +52,7 @@ class HybridMapTemplate: HybridMapTemplateSpec {
     func showNavigationAlert(templateId: String, alert: NitroNavigationAlert)
         throws
     {
-        try RootModule.withAutoPlayTemplate(templateId: templateId) {
+        try withMapTemplateOnMainActor(templateId: templateId) {
             (template: MapTemplate) in
             template.showAlert(alertConfig: alert)
         }
@@ -49,7 +64,7 @@ class HybridMapTemplate: HybridMapTemplateSpec {
         title: AutoText,
         subtitle: AutoText?
     ) throws {
-        try RootModule.withAutoPlayTemplate(templateId: templateId) {
+        try withMapTemplateOnMainActor(templateId: templateId) {
             (template: MapTemplate) in
             template.updateNavigationAlert(
                 alertId: navigationAlertId,
@@ -62,7 +77,7 @@ class HybridMapTemplate: HybridMapTemplateSpec {
     func dismissNavigationAlert(templateId: String, navigationAlertId: Double)
         throws
     {
-        try RootModule.withAutoPlayTemplate(templateId: templateId) {
+        try withMapTemplateOnMainActor(templateId: templateId) {
             (template: MapTemplate) in
             template.dismissNavigationAlert(alertId: navigationAlertId)
         }
@@ -80,17 +95,19 @@ class HybridMapTemplate: HybridMapTemplateSpec {
     ) throws -> TripSelectorCallback {
         var callback: TripSelectorCallback?
 
-        try RootModule.withAutoPlayTemplate(templateId: templateId) {
-            (template: MapTemplate) in
-            callback = template.showTripSelector(
-                trips: trips,
-                selectedTripId: selectedTripId,
-                textConfig: textConfig,
-                onTripSelected: onTripSelected,
-                onTripStarted: onTripStarted,
-                onBackPressed: onBackPressed,
-                mapButtons: mapButtons
-            )
+        try RootModule.performOnMainActor {
+            try RootModule.withAutoPlayTemplate(templateId: templateId) {
+                (template: MapTemplate) in
+                callback = template.showTripSelector(
+                    trips: trips,
+                    selectedTripId: selectedTripId,
+                    textConfig: textConfig,
+                    onTripSelected: onTripSelected,
+                    onTripStarted: onTripStarted,
+                    onBackPressed: onBackPressed,
+                    mapButtons: mapButtons
+                )
+            }
         }
 
         guard let callback = callback else {
@@ -101,7 +118,7 @@ class HybridMapTemplate: HybridMapTemplateSpec {
     }
 
     func hideTripSelector(templateId: String) throws {
-        try RootModule.withAutoPlayTemplate(templateId: templateId) {
+        try withMapTemplateOnMainActor(templateId: templateId) {
             (template: MapTemplate) in
             template.hideTripSelector()
         }
@@ -111,7 +128,7 @@ class HybridMapTemplate: HybridMapTemplateSpec {
         templateId: String,
         visibleTravelEstimate: VisibleTravelEstimate
     ) throws {
-        try RootModule.withAutoPlayTemplate(templateId: templateId) {
+        try withMapTemplateOnMainActor(templateId: templateId) {
             (template: MapTemplate) in
             template.updateVisibleTravelEstimate(
                 visibleTravelEstimate: visibleTravelEstimate
@@ -120,14 +137,14 @@ class HybridMapTemplate: HybridMapTemplateSpec {
     }
 
     func updateTravelEstimates(templateId: String, steps: [TripPoint]) throws {
-        try RootModule.withAutoPlayTemplate(templateId: templateId) {
+        try withMapTemplateOnMainActor(templateId: templateId) {
             (template: MapTemplate) in
             template.updateTravelEstimates(steps: steps)
         }
     }
 
     func updateManeuvers(templateId: String, maneuvers: NitroManeuver) throws {
-        try RootModule.withAutoPlayTemplate(templateId: templateId) {
+        try withMapTemplateOnMainActor(templateId: templateId) {
             (template: MapTemplate) in
             switch maneuvers {
             case .first(let routingManeuvers):
@@ -147,23 +164,36 @@ class HybridMapTemplate: HybridMapTemplateSpec {
         }
     }
 
+    func registerManeuvers(
+        templateId: String,
+        maneuvers: [NitroRoutingManeuver]
+    ) throws {
+        try withMapTemplateOnMainActor(templateId: templateId) {
+            (template: MapTemplate) in
+            template.registerManeuvers(maneuvers: maneuvers)
+        }
+    }
+
     func startNavigation(templateId: String, trip: TripConfig) throws {
-        try RootModule.withAutoPlayTemplate(templateId: templateId) {
+        try withMapTemplateOnMainActor(templateId: templateId) {
             (template: MapTemplate) in
             let trip = Parser.parseTrip(tripConfig: trip)
             template.startNavigation(trip: trip)
         }
     }
 
-    func stopNavigation(templateId: String) throws {
-        try RootModule.withAutoPlayTemplate(templateId: templateId) {
+    func stopNavigation(
+        templateId: String,
+        reason: NavigationStopReason
+    ) throws {
+        try withMapTemplateOnMainActor(templateId: templateId) {
             (template: MapTemplate) in
-            template.stopNavigation()
+            template.stopNavigation(reason: reason)
         }
     }
 
     func setManeuverState(templateId: String, state: ManeuverState) throws {
-        try RootModule.withAutoPlayTemplate(templateId: templateId) {
+        try withMapTemplateOnMainActor(templateId: templateId) {
             (template: MapTemplate) in
             template.setManeuverState(state: state)
         }

@@ -1,5 +1,6 @@
 import type { HybridObject } from 'react-native-nitro-modules';
 import type {
+  NavigationStopReason,
   NitroMapTemplateConfig,
   TripSelectorCallback,
   VisibleTravelEstimate,
@@ -13,7 +14,7 @@ import type {
   TripsConfig,
 } from '../types/Trip';
 import type { NitroNavigationAlert } from '../utils/NitroAlert';
-import type { NitroManeuver } from '../utils/NitroManeuver';
+import type { NitroManeuver, NitroRoutingManeuver } from '../utils/NitroManeuver';
 import type { NitroMapButton } from '../utils/NitroMapButton';
 import type { NitroTemplateConfig } from './AutoPlay.nitro';
 
@@ -47,7 +48,8 @@ export interface MapTemplate extends HybridObject<{ android: 'kotlin'; ios: 'swi
   ): void;
   updateTravelEstimates(templateId: string, steps: Array<TripPoint>): void;
   updateManeuvers(templateId: string, maneuvers: NitroManeuver): void;
+  registerManeuvers(templateId: string, maneuvers: Array<NitroRoutingManeuver>): void;
   startNavigation(templateId: string, trip: TripConfig): void;
-  stopNavigation(templateId: string): void;
+  stopNavigation(templateId: string, reason: NavigationStopReason): void;
   setManeuverState(templateId: string, state: ManeuverState): void;
 }

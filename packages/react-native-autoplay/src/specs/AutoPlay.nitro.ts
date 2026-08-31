@@ -35,13 +35,17 @@ export interface AutoPlay extends HybridObject<{ android: 'kotlin'; ios: 'swift'
 
   /**
    * Adds a listener for voice input events fired by the OS (Android Auto only).
-   * On iOS this is a no-op — use startVoiceInput instead.
-   * @param callback the callback to receive the voice input
+   * On iOS this is a no-op — use HybridVoice.startVoiceInput instead.
+   * @param callback the callback to receive coordinates, query, and request type
    * @returns callback to remove the listener
    * @namespace Android
    */
   addListenerVoiceInput(
-    callback: (coordinates: Location | undefined, query: string | undefined) => void
+    callback: (
+      coordinates: Location | undefined,
+      query: string | undefined,
+      requestType: string
+    ) => void
   ): CleanupCallback;
 
   /**

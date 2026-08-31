@@ -165,11 +165,11 @@ open class HybridAutoPlaySpec_cxx {
   }
   
   @inline(__always)
-  public final func addListenerVoiceInput(callback: bridge.Func_void_std__optional_Location__std__optional_std__string_) -> bridge.Result_std__function_void____ {
+  public final func addListenerVoiceInput(callback: bridge.Func_void_std__optional_Location__std__optional_std__string__std__string) -> bridge.Result_std__function_void____ {
     do {
-      let __result = try self.__implementation.addListenerVoiceInput(callback: { () -> (Location?, String?) -> Void in
-        let __wrappedFunction = bridge.wrap_Func_void_std__optional_Location__std__optional_std__string_(callback)
-        return { (__coordinates: Location?, __query: String?) -> Void in
+      let __result = try self.__implementation.addListenerVoiceInput(callback: { () -> (Location?, String?, String) -> Void in
+        let __wrappedFunction = bridge.wrap_Func_void_std__optional_Location__std__optional_std__string__std__string(callback)
+        return { (__coordinates: Location?, __query: String?, __requestType: String) -> Void in
           __wrappedFunction.call({ () -> bridge.std__optional_Location_ in
             if let __unwrappedValue = __coordinates {
               return bridge.create_std__optional_Location_(__unwrappedValue)
@@ -182,7 +182,7 @@ open class HybridAutoPlaySpec_cxx {
             } else {
               return .init()
             }
-          }())
+          }(), std.string(__requestType))
         }
       }())
       let __resultCpp = { () -> bridge.Func_void in

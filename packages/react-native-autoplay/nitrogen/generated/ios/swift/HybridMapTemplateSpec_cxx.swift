@@ -84,7 +84,7 @@ open class HybridMapTemplateSpec_cxx {
     }
   }
 
-  
+
 
   /**
    * Get the memory size of the Swift class (plus size of any other allocations)
@@ -134,7 +134,7 @@ open class HybridMapTemplateSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func showNavigationAlert(templateId: std.string, alert: NitroNavigationAlert) -> bridge.Result_void_ {
     do {
@@ -288,6 +288,17 @@ open class HybridMapTemplateSpec_cxx {
   }
   
   @inline(__always)
+  public final func registerManeuvers(templateId: std.string, maneuvers: bridge.std__vector_NitroRoutingManeuver_) -> bridge.Result_void_ {
+    do {
+      try self.__implementation.registerManeuvers(templateId: String(templateId), maneuvers: maneuvers.map({ __item in __item }))
+      return bridge.create_Result_void_()
+    } catch (let __error) {
+      let __exceptionPtr = __error.toCpp()
+      return bridge.create_Result_void_(__exceptionPtr)
+    }
+  }
+
+  @inline(__always)
   public final func startNavigation(templateId: std.string, trip: TripConfig) -> bridge.Result_void_ {
     do {
       try self.__implementation.startNavigation(templateId: String(templateId), trip: trip)
@@ -299,9 +310,9 @@ open class HybridMapTemplateSpec_cxx {
   }
   
   @inline(__always)
-  public final func stopNavigation(templateId: std.string) -> bridge.Result_void_ {
+  public final func stopNavigation(templateId: std.string, reason: Int32) -> bridge.Result_void_ {
     do {
-      try self.__implementation.stopNavigation(templateId: String(templateId))
+      try self.__implementation.stopNavigation(templateId: String(templateId), reason: margelo.nitro.swe.iternio.reactnativeautoplay.NavigationStopReason(rawValue: reason)!)
       return bridge.create_Result_void_()
     } catch (let __error) {
       let __exceptionPtr = __error.toCpp()

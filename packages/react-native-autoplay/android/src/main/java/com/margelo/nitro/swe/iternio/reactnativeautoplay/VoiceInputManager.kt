@@ -29,11 +29,13 @@ import com.margelo.nitro.NitroModules
 import com.margelo.nitro.core.ArrayBuffer
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.G711
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.ThreadUtil
+import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.ByteArrayOutputStream
@@ -69,9 +71,25 @@ class VoiceInputManager(
     @Volatile
     private var cancelledByUser = false
 
-    // STT state — only set when SpeechRecognizer owns the mic
     @Volatile
-    private var activeSpeechRecognizer: SpeechRecognizer? = null
+    private var stopRequested = false
+
+    private val speechRecognitionLock = Any()
+    private var activeSpeechRecognitionSession: SpeechRecognitionSession? = null
+
+    private class SpeechRecognitionSession(
+        val recognizer: SpeechRecognizer,
+        val continuation: CancellableContinuation<VoiceInputResult>,
+    ) {
+        @Volatile
+        var latestPartialTranscript: String? = null
+
+        @Volatile
+        var stopRequested = false
+
+        var maxDurationJob: Job? = null
+        var finalizationJob: Job? = null
+    }
 
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun start(
@@ -101,7 +119,9 @@ class VoiceInputManager(
                             startPCM(silenceThresholdMs, maxDurationMs, encoding, onChunk)
                         }
                     } else {
-                        ThreadUtil.postOnUiAndAwait { startSTT(context, onChunk, language) }.getOrThrow()
+                        ThreadUtil.postOnUiAndAwait {
+                            startSTT(context, maxDurationMs, onChunk, language)
+                        }.getOrThrow()
                     }
                 } else {
                     startPCM(silenceThresholdMs, maxDurationMs, encoding, onChunk)
@@ -122,31 +142,35 @@ class VoiceInputManager(
 
     private suspend fun startSTT(
         context: Context,
+        maxDurationMs: Long,
         onChunk: ((chunk: VoiceInputChunk) -> Unit)?,
         language: String?
     ): VoiceInputResult = suspendCancellableCoroutine { cont ->
         val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
-        activeSpeechRecognizer = recognizer
+        val session = beginSpeechRecognitionSession(recognizer, cont)
 
         recognizer.setRecognitionListener(object : RecognitionListener {
             override fun onResults(results: Bundle?) {
-                activeSpeechRecognizer = null
-                recognizer.destroy()
                 val text =
                     results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
-                cont.resume(VoiceInputResult(transcription = text, audio = null))
+                finishSpeechRecognition(session, transcription = text)
             }
 
             override fun onError(error: Int) {
-                activeSpeechRecognizer = null
-                recognizer.destroy()
-                cont.resumeWithException(RuntimeException("SpeechRecognizer error $error"))
+                finishSpeechRecognition(
+                    session,
+                    error = if (session.stopRequested) {
+                        null
+                    } else {
+                        RuntimeException("SpeechRecognizer error $error")
+                    },
+                )
             }
 
             override fun onPartialResults(partialResults: Bundle?) {
                 val text = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     ?.firstOrNull()
-                if (!text.isNullOrEmpty()) {
+                if (!text.isNullOrBlank() && updateLatestPartialTranscript(session, text)) {
                     onChunk?.invoke(VoiceInputChunk(partial = text, audio = null))
                 }
             }
@@ -170,11 +194,18 @@ class VoiceInputManager(
             }
         }
 
-        recognizer.startListening(intent)
-
         cont.invokeOnCancellation {
-            activeSpeechRecognizer = null
-            recognizer.destroy()
+            cancelSpeechRecognition(session)
+        }
+
+        try {
+            recognizer.startListening(intent)
+            scheduleSpeechRecognitionDeadline(session, maxDurationMs)
+            if (stopRequested) {
+                requestSpeechRecognitionStop(session)
+            }
+        } catch (error: Exception) {
+            finishSpeechRecognition(session, error = error)
         }
     }
 
@@ -199,7 +230,14 @@ class VoiceInputManager(
 
         val sttDeferred = scope.async {
             ThreadUtil.postOnUiAndAwait {
-                startSTTWithSource(appContext, readFd, silenceThresholdMs, onChunk, language)
+                startSTTWithSource(
+                    appContext,
+                    readFd,
+                    silenceThresholdMs,
+                    maxDurationMs,
+                    onChunk,
+                    language,
+                )
             }.getOrThrow()
         }
 
@@ -223,6 +261,7 @@ class VoiceInputManager(
                 readFd.close()
             } catch (_: Exception) {
             }
+            requestActiveSpeechRecognitionStop()
         }
 
         return try {
@@ -240,36 +279,35 @@ class VoiceInputManager(
         context: Context,
         audioSource: ParcelFileDescriptor,
         silenceThresholdMs: Long,
+        maxDurationMs: Long,
         onChunk: ((chunk: VoiceInputChunk) -> Unit)?,
         language: String?
     ): VoiceInputResult = suspendCancellableCoroutine { cont ->
         val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
-        activeSpeechRecognizer = recognizer
-        // When EXTRA_AUDIO_SOURCE is used, onResults always returns an empty list — the actual
-        // transcription only arrives via onPartialResults. Track the last partial here.
-        var lastPartial: String? = null
+        val session = beginSpeechRecognitionSession(recognizer, cont)
 
         recognizer.setRecognitionListener(object : RecognitionListener {
             override fun onResults(results: Bundle?) {
-                activeSpeechRecognizer = null
-                recognizer.destroy()
                 val text =
                     results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
-                        ?: lastPartial
-                cont.resume(VoiceInputResult(transcription = text, audio = null))
+                finishSpeechRecognition(session, transcription = text)
             }
 
             override fun onError(error: Int) {
-                activeSpeechRecognizer = null
-                recognizer.destroy()
-                cont.resumeWithException(RuntimeException("SpeechRecognizer error $error"))
+                finishSpeechRecognition(
+                    session,
+                    error = if (session.stopRequested) {
+                        null
+                    } else {
+                        RuntimeException("SpeechRecognizer error $error")
+                    },
+                )
             }
 
             override fun onPartialResults(partialResults: Bundle?) {
                 val text = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     ?.firstOrNull()
-                if (!text.isNullOrEmpty()) {
-                    lastPartial = text
+                if (!text.isNullOrBlank() && updateLatestPartialTranscript(session, text)) {
                     onChunk?.invoke(VoiceInputChunk(partial = text, audio = null))
                 }
             }
@@ -306,11 +344,156 @@ class VoiceInputManager(
             )
         }
 
-        recognizer.startListening(intent)
-
         cont.invokeOnCancellation {
-            activeSpeechRecognizer = null
-            recognizer.destroy()
+            cancelSpeechRecognition(session)
+        }
+
+        try {
+            recognizer.startListening(intent)
+            scheduleSpeechRecognitionDeadline(session, maxDurationMs)
+            if (stopRequested) {
+                requestSpeechRecognitionStop(session)
+            }
+        } catch (error: Exception) {
+            finishSpeechRecognition(session, error = error)
+        }
+    }
+
+    private fun beginSpeechRecognitionSession(
+        recognizer: SpeechRecognizer,
+        continuation: CancellableContinuation<VoiceInputResult>,
+    ): SpeechRecognitionSession {
+        return synchronized(speechRecognitionLock) {
+            SpeechRecognitionSession(
+                recognizer = recognizer,
+                continuation = continuation,
+            ).also { session ->
+                activeSpeechRecognitionSession = session
+            }
+        }
+    }
+
+    private fun scheduleSpeechRecognitionDeadline(
+        session: SpeechRecognitionSession,
+        maxDurationMs: Long,
+    ) {
+        val job = scope.launch {
+            delay(maxDurationMs.coerceAtLeast(0L))
+            requestSpeechRecognitionStop(session)
+        }
+
+        synchronized(speechRecognitionLock) {
+            if (activeSpeechRecognitionSession === session) {
+                session.maxDurationJob = job
+            } else {
+                job.cancel()
+            }
+        }
+    }
+
+    private fun updateLatestPartialTranscript(
+        session: SpeechRecognitionSession,
+        transcript: String,
+    ): Boolean {
+        return synchronized(speechRecognitionLock) {
+            if (activeSpeechRecognitionSession !== session) {
+                false
+            } else {
+                session.latestPartialTranscript = transcript
+                true
+            }
+        }
+    }
+
+    private fun requestActiveSpeechRecognitionStop() {
+        val session = synchronized(speechRecognitionLock) {
+            activeSpeechRecognitionSession
+        }
+        session?.let(::requestSpeechRecognitionStop)
+    }
+
+    private fun requestSpeechRecognitionStop(session: SpeechRecognitionSession) {
+        val shouldStop = synchronized(speechRecognitionLock) {
+            if (activeSpeechRecognitionSession !== session || session.stopRequested) {
+                false
+            } else {
+                session.stopRequested = true
+                true
+            }
+        }
+        if (!shouldStop) {
+            return
+        }
+
+        session.finalizationJob = scope.launch {
+            delay(SPEECH_FINALIZATION_TIMEOUT_MS)
+            finishSpeechRecognition(session)
+        }
+
+        UiThreadUtil.runOnUiThread {
+            if (isActiveSpeechRecognitionSession(session)) {
+                try {
+                    session.recognizer.stopListening()
+                } catch (_: Exception) {
+                    finishSpeechRecognition(session)
+                }
+            }
+        }
+    }
+
+    private fun finishSpeechRecognition(
+        session: SpeechRecognitionSession,
+        transcription: String? = null,
+        error: Throwable? = null,
+    ) {
+        if (!deactivateSpeechRecognitionSession(session)) {
+            return
+        }
+
+        session.maxDurationJob?.cancel()
+        session.finalizationJob?.cancel()
+        UiThreadUtil.runOnUiThread {
+            session.recognizer.destroy()
+        }
+
+        val resolvedTranscript = transcription?.takeIf { it.isNotBlank() }
+            ?: session.latestPartialTranscript?.takeIf { it.isNotBlank() }
+        if (error != null && resolvedTranscript == null) {
+            session.continuation.resumeWithException(error)
+        } else {
+            session.continuation.resume(
+                VoiceInputResult(transcription = resolvedTranscript, audio = null)
+            )
+        }
+    }
+
+    private fun cancelSpeechRecognition(session: SpeechRecognitionSession) {
+        if (!deactivateSpeechRecognitionSession(session)) {
+            return
+        }
+
+        session.maxDurationJob?.cancel()
+        session.finalizationJob?.cancel()
+        UiThreadUtil.runOnUiThread {
+            session.recognizer.cancel()
+            session.recognizer.destroy()
+        }
+    }
+
+    private fun deactivateSpeechRecognitionSession(session: SpeechRecognitionSession): Boolean {
+        return synchronized(speechRecognitionLock) {
+            if (activeSpeechRecognitionSession !== session) {
+                false
+            } else {
+                activeSpeechRecognitionSession = null
+                true
+            }
+        }
+    }
+
+    private fun isActiveSpeechRecognitionSession(session: SpeechRecognitionSession): Boolean {
+        return synchronized(speechRecognitionLock) {
+            activeSpeechRecognitionSession === session
         }
     }
 
@@ -482,14 +665,12 @@ class VoiceInputManager(
     fun stop() {
         // Mark as no longer recording before triggering any teardown side effects, so anything
         // racing against a concurrent read() sees this is an app-initiated stop.
+        stopRequested = true
         isRecording = false
 
-        // STT path: stopListening() triggers onResults/onError which resolves the continuation
-        activeSpeechRecognizer?.let { recognizer ->
-            UiThreadUtil.runOnUiThread {
-                recognizer.stopListening()
-            }
-        }
+        // SpeechRecognizer implementations are not required to deliver a terminal callback after
+        // stopListening(), so this path also owns a bounded finalization fallback.
+        requestActiveSpeechRecognitionStop()
         // PCM path and car-audio STT pump
         carAudioRecord?.stopRecording()
         audioRecord?.stop()
@@ -597,6 +778,7 @@ class VoiceInputManager(
         private const val SAMPLE_RATE = 16_000
         private const val PHONE_BUFFER_SIZE = 3_200 // ~100ms at 16kHz/16-bit/mono
         private const val CHUNK_EMIT_BYTES = 3_200 // ~100ms at 16kHz/16-bit/mono, batches onChunk callbacks
+        private const val SPEECH_FINALIZATION_TIMEOUT_MS = 2_000L
 
         fun hasVoiceInputPermission(): Boolean {
             val context = NitroModules.applicationContext ?: return false

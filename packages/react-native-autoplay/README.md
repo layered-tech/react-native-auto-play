@@ -696,7 +696,7 @@ This section lists the available listeners and lifecycle callbacks so you can wi
 | --- | --- | --- |
 | `HybridAutoPlay.addListener(event, cb)` | event: `'didConnect'` `'didDisconnect'` | Connection changes for the head unit. |
 | `HybridAutoPlay.addListenerRenderState(moduleName, cb)` | `cb(visibility: 'willAppear' \| 'didAppear' \| 'willDisappear' \| 'didDisappear')` | Use `AutoPlayModules.*` or a cluster UUID. |
-| `HybridAutoPlay.addListenerVoiceInput(cb)` | `cb(location?, query?)` | Android-only. Fires when the OS triggers a voice input event (e.g. "Hey Google, navigate to…"). For in-app recording use `startVoiceInput` instead. |
+| `HybridAutoPlay.addListenerVoiceInput(cb)` | `cb(location?, query?, requestType)` | Android-only. Fires when the OS triggers a classified voice navigation or search request. For in-app recording use `HybridVoice.startVoiceInput` instead. |
 | `HybridAutoPlay.addSafeAreaInsetsListener(moduleName, cb)` | `cb(insets)` | Safe area inset changes for any module. |
 
 ```ts
@@ -741,6 +741,10 @@ Map-specific callbacks live on `MapTemplateConfig`:
 - `onAppearanceDidChange(colorScheme)`
 - `onAutoDriveEnabled(template)` (Android)
 - `onStopNavigation(template)` (**required**)
+
+Call `registerManeuvers()` with the complete known route after `startNavigation()`, then use
+`updateManeuvers()` for the smaller visible maneuver window. End a completed trip with
+`stopNavigation(NavigationStopReason.Arrived)`; user or host cancellation remains the default.
 
 #### AutoPlayCluster listeners (instrument cluster)
 
@@ -940,21 +944,25 @@ HybridVoice.startVoiceInput().catch((e) => {
 `addListenerVoiceInput` fires when the OS itself initiates a voice action (e.g. "Hey Google, navigate to…"). It is a no-op on iOS — use `startVoiceInput` for in-app recording on both platforms.
 
 ```ts
-const cleanup = HybridAutoPlay.addListenerVoiceInput((location, query) => {
-  console.log('Voice query:', query, 'near', location);
+const cleanup = HybridAutoPlay.addListenerVoiceInput((location, query, requestType) => {
+  console.log('Voice request:', requestType, query, 'near', location);
 });
 ```
 
 #### useVoiceInput hook (Android only)
 
-A convenience hook that wires up `addListenerVoiceInput` and exposes the latest `location` and `query` values reactively.
+A convenience hook that wires up `addListenerVoiceInput` and exposes the latest classified request reactively.
 
 ```tsx
 import { useVoiceInput } from '@iternio/react-native-auto-play';
 
 const MyScreen = () => {
-  const { location, query } = useVoiceInput();
-  return <Text>{query ?? 'Say something…'}</Text>;
+  const { voiceInputResult, resetVoiceInputResult } = useVoiceInput();
+  return (
+    <Text onPress={resetVoiceInputResult}>
+      {voiceInputResult?.query ?? voiceInputResult?.requestType ?? 'Say something…'}
+    </Text>
+  );
 };
 ```
 
@@ -963,7 +971,7 @@ const MyScreen = () => {
 ### Hooks
 
 -   `useMapTemplate()`: Get a reference to the parent `MapTemplate` instance.
--   `useVoiceInput()`: Reactively exposes the latest OS-triggered voice input (`location`, `query`). Android only — for in-app recording use `startVoiceInput` / `stopVoiceInput` directly.
+-   `useVoiceInput()`: Reactively exposes the latest classified Android OS voice request. For in-app recording use `HybridVoice.startVoiceInput` / `stopVoiceInput` directly.
 -   `useSafeAreaInsets()`: Get safe area insets for any root component.
 -   `useFocusedEffect()`: A useEffect alternative that executes when the specified component is visible to the user - use any of the `AutoPlayModules` enum or a cluster uuid to sepcify the component the effect should listen for.
 -   `useAndroidAutoTelemetry()`: Access to car telemetry data on Android Auto and Android Automotive.

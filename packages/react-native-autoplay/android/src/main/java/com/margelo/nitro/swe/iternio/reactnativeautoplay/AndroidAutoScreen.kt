@@ -1,5 +1,8 @@
 package com.margelo.nitro.swe.iternio.reactnativeautoplay
 
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import androidx.activity.OnBackPressedCallback
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
@@ -8,8 +11,6 @@ import androidx.car.app.model.Template
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
-import com.facebook.react.bridge.UiThreadUtil
-import java.util.concurrent.ConcurrentHashMap
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.AndroidAutoTemplate
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.GridTemplate
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.InformationTemplate
@@ -18,6 +19,8 @@ import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.MapTemplate
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.MessageTemplate
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.SearchTemplate
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.SignInTemplate
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 class AndroidAutoScreen(
     carContext: CarContext, private val moduleName: String, private var template: Template
@@ -49,6 +52,8 @@ class AndroidAutoScreen(
                     }
 
                     Lifecycle.Event.ON_DESTROY -> {
+                        invalidationHandler.removeCallbacks(invalidationRunnable)
+                        invalidationPending.set(false)
                         screens.remove(moduleName)
                         HybridAutoPlay.removeListeners(moduleName)
                         AndroidAutoTemplate.getTemplate(moduleName)?.onPopped()
@@ -85,7 +90,35 @@ class AndroidAutoScreen(
         })
     }
 
-    fun applyConfigUpdate(invalidate: Boolean = false) {
+    private val invalidationPending = AtomicBoolean(false)
+    private val invalidationHandler = Handler(Looper.getMainLooper())
+    private var lastInvalidationAtMs = 0L
+    private val invalidationRunnable = Runnable {
+        lastInvalidationAtMs = SystemClock.uptimeMillis()
+        invalidationPending.set(false)
+        invalidate()
+    }
+
+    private fun scheduleInvalidation() {
+        if (!invalidationPending.compareAndSet(false, true)) {
+            return
+        }
+
+        // Android Auto presents templates asynchronously. Location updates can
+        // arrive while the prior presentation is still active, so coalescing one
+        // UI turn is insufficient. Preserve the latest template while limiting
+        // refreshes to four per second for this screen.
+        val elapsedSinceLastInvalidation =
+            SystemClock.uptimeMillis() - lastInvalidationAtMs
+        val delayMs = (MIN_INVALIDATION_INTERVAL_MS - elapsedSinceLastInvalidation)
+            .coerceAtLeast(0L)
+        invalidationHandler.postDelayed(invalidationRunnable, delayMs)
+    }
+
+    fun applyConfigUpdate(
+        invalidate: Boolean = false,
+        immediate: Boolean = false,
+    ) {
         val config = AndroidAutoTemplate.getConfig(moduleName) ?: return
 
         when (config) {
@@ -105,9 +138,15 @@ class AndroidAutoScreen(
                 return
             }
 
-            UiThreadUtil.runOnUiThread {
+            if (immediate) {
+                invalidationHandler.removeCallbacks(invalidationRunnable)
+                invalidationPending.set(false)
+                lastInvalidationAtMs = SystemClock.uptimeMillis()
                 invalidate()
+                return
             }
+
+            scheduleInvalidation()
         }
     }
 
@@ -117,6 +156,7 @@ class AndroidAutoScreen(
 
     companion object {
         const val TAG = "AndroidAutoScreen"
+        private const val MIN_INVALIDATION_INTERVAL_MS = 250L
 
         private val screens = ConcurrentHashMap<String, AndroidAutoScreen>()
 

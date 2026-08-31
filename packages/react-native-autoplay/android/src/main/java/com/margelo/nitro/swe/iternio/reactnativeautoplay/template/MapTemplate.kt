@@ -1,6 +1,5 @@
 package com.margelo.nitro.swe.iternio.reactnativeautoplay.template
 
-import android.app.Service
 import android.graphics.Color
 import androidx.car.app.AppManager
 import androidx.car.app.CarContext
@@ -301,9 +300,8 @@ class MapTemplate(
             destinationTravelEstimates = arrayOf()
             navigationInfo = null
 
+            AndroidAutoService.instance?.clearNavigationNotification()
             AndroidAutoScreen.invalidateSurfaceScreens()
-
-            AndroidAutoService.instance?.stopForeground(Service.STOP_FOREGROUND_REMOVE)
         }
 
         fun updateManeuvers(maneuvers: NitroManeuver) {

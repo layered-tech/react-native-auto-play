@@ -1,6 +1,5 @@
 package com.margelo.nitro.swe.iternio.reactnativeautoplay
 
-import android.os.Build
 import com.facebook.react.bridge.UiThreadUtil
 import com.margelo.nitro.core.Promise
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.AndroidAutoTemplate
@@ -8,7 +7,6 @@ import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.MessageTemplat
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.ThreadUtil
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.coroutines.resume
 
 class HybridAutoPlay : HybridAutoPlaySpec() {
     init {
@@ -239,11 +237,19 @@ class HybridAutoPlay : HybridAutoPlaySpec() {
     }
 
 
-    override fun addListenerVoiceInput(callback: (Location?, String?) -> Unit): () -> Unit {
-        voiceInputListeners.add(callback)
+    override fun addListenerVoiceInput(callback: (Location?, String?, String) -> Unit): () -> Unit {
+        synchronized(voiceInputLock) {
+            voiceInputListeners.add(callback)
+            pendingVoiceInput?.let {
+                pendingVoiceInput = null
+                callback(it.first, it.second, it.third)
+            }
+        }
 
         return {
-            voiceInputListeners.remove(callback)
+            synchronized(voiceInputLock) {
+                voiceInputListeners.remove(callback)
+            }
         }
     }
 
@@ -255,7 +261,12 @@ class HybridAutoPlay : HybridAutoPlaySpec() {
         private val renderStateListeners =
             ConcurrentHashMap<String, CopyOnWriteArrayList<(VisibilityState) -> Unit>>()
 
-        private val voiceInputListeners = CopyOnWriteArrayList<(Location?, String?) -> Unit>()
+        private val voiceInputListeners = CopyOnWriteArrayList<(Location?, String?, String) -> Unit>()
+
+        private val voiceInputLock = Any()
+
+        @Volatile
+        private var pendingVoiceInput: Triple<Location?, String?, String>? = null
 
         private val safeAreaInsetsListeners =
             ConcurrentHashMap<String, CopyOnWriteArrayList<(SafeAreaInsets) -> Unit>>()
@@ -277,9 +288,28 @@ class HybridAutoPlay : HybridAutoPlaySpec() {
             }
         }
 
-        fun emitVoiceInput(location: Location?, query: String?) {
-            voiceInputListeners.forEach {
-                it(location, query)
+        fun emitVoiceInput(
+            location: Location?,
+            query: String?,
+            requestType: String
+        ) {
+            val listeners = synchronized(voiceInputLock) {
+                if (voiceInputListeners.isEmpty()) {
+                    pendingVoiceInput = Triple(location, query, requestType)
+                    return
+                }
+
+                voiceInputListeners.toList()
+            }
+
+            listeners.forEach {
+                it(location, query, requestType)
+            }
+        }
+
+        fun clearPendingVoiceInput() {
+            synchronized(voiceInputLock) {
+                pendingVoiceInput = null
             }
         }
 

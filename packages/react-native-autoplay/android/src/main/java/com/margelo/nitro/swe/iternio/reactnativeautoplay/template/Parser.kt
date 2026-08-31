@@ -8,6 +8,7 @@ import android.graphics.PorterDuffColorFilter
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.Spanned
+import android.text.format.DateFormat
 import android.util.Log
 import androidx.car.app.CarContext
 import androidx.car.app.model.Action
@@ -76,9 +77,7 @@ import com.margelo.nitro.swe.iternio.reactnativeautoplay.Variant_GlyphImage_Asse
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.BitmapCache
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.SymbolFont
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.get
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Locale
 import java.util.TimeZone
 import kotlin.math.abs
 import androidx.core.net.toUri
@@ -426,12 +425,15 @@ object Parser {
         }.build()
     }
 
-    fun formatToTimestamp(time: DurationWithTimeZone): String {
-        val calendar = Calendar.getInstance().apply {
+    fun formatToTimestamp(context: CarContext, time: DurationWithTimeZone): String {
+        val timeZone = TimeZone.getTimeZone(time.timezone)
+        val calendar = Calendar.getInstance(timeZone).apply {
             add(Calendar.SECOND, time.seconds.toInt())
         }
 
-        val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+        val formatter = DateFormat.getTimeFormat(context).apply {
+            this.timeZone = timeZone
+        }
         return formatter.format(calendar.time)
     }
 

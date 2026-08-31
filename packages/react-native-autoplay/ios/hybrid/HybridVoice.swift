@@ -3,6 +3,7 @@ import NitroModules
 import Speech
 
 class HybridVoice: HybridVoiceSpec {
+    private let voiceInputLock = NSLock()
     private var voiceInputManager: VoiceInputManager?
 
     func hasVoiceInputPermission() throws -> Bool {
@@ -41,13 +42,24 @@ class HybridVoice: HybridVoiceSpec {
         endSoundUri: String?,
         encoding: VoiceAudioEncoding?
     ) throws -> Promise<VoiceInputResult> {
+        let manager = VoiceInputManager()
+        let previousManager = swapVoiceInputManager(manager)
+        previousManager?.stop()
+
         return Promise.async {
+            defer {
+                self.clearVoiceInputManager(ifCurrent: manager)
+            }
+
+            guard self.voiceInputManagerIsCurrent(manager) else {
+                throw VoiceInputError.noActiveSession
+            }
+
             let interfaceController = try? await RootModule.withInterfaceController { $0 }
 
-            let manager = VoiceInputManager()
-            self.voiceInputManager = manager
-
-            defer { self.voiceInputManager = nil }
+            guard self.voiceInputManagerIsCurrent(manager) else {
+                throw VoiceInputError.noActiveSession
+            }
 
             return try await manager.start(
                 interfaceController: interfaceController,
@@ -67,9 +79,35 @@ class HybridVoice: HybridVoiceSpec {
     }
 
     func stopVoiceInput() throws {
-        Task { @MainActor in
-            let interfaceController = try? await RootModule.withInterfaceController { $0 }
-            self.voiceInputManager?.stop(interfaceController: interfaceController)
+        swapVoiceInputManager(nil)?.stop()
+    }
+
+    private func swapVoiceInputManager(
+        _ manager: VoiceInputManager?
+    ) -> VoiceInputManager? {
+        voiceInputLock.lock()
+        let previousManager = voiceInputManager
+        voiceInputManager = manager
+        voiceInputLock.unlock()
+        return previousManager
+    }
+
+    private func clearVoiceInputManager(
+        ifCurrent manager: VoiceInputManager
+    ) {
+        voiceInputLock.lock()
+        if voiceInputManager === manager {
+            voiceInputManager = nil
         }
+        voiceInputLock.unlock()
+    }
+
+    private func voiceInputManagerIsCurrent(
+        _ manager: VoiceInputManager
+    ) -> Bool {
+        voiceInputLock.lock()
+        let isCurrent = voiceInputManager === manager
+        voiceInputLock.unlock()
+        return isCurrent
     }
 }

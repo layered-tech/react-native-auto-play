@@ -26,7 +26,7 @@ import com.margelo.nitro.core.HybridObject
 )
 abstract class HybridMapTemplateSpec: HybridObject() {
   // Properties
-  
+
 
   // Methods
   @DoNotStrip
@@ -76,11 +76,15 @@ abstract class HybridMapTemplateSpec: HybridObject() {
   
   @DoNotStrip
   @Keep
+  abstract fun registerManeuvers(templateId: String, maneuvers: Array<NitroRoutingManeuver>): Unit
+
+  @DoNotStrip
+  @Keep
   abstract fun startNavigation(templateId: String, trip: TripConfig): Unit
   
   @DoNotStrip
   @Keep
-  abstract fun stopNavigation(templateId: String): Unit
+  abstract fun stopNavigation(templateId: String, reason: NavigationStopReason): Unit
   
   @DoNotStrip
   @Keep

@@ -95,6 +95,8 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class Traffic
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ManeuverType; }
 // Forward declaration of `TripConfig` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct TripConfig; }
+// Forward declaration of `NavigationStopReason` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class NavigationStopReason; }
 // Forward declaration of `ManeuverState` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ManeuverState; }
 
@@ -209,6 +211,8 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class Maneuve
 #include "JNitroLoadingManeuver.hpp"
 #include "TripConfig.hpp"
 #include "JTripConfig.hpp"
+#include "NavigationStopReason.hpp"
+#include "JNavigationStopReason.hpp"
 #include "ManeuverState.hpp"
 #include "JManeuverState.hpp"
 
@@ -333,13 +337,26 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* templateId */, jni::alias_ref<JNitroManeuver> /* maneuvers */)>("updateManeuvers");
     method(_javaPart, jni::make_jstring(templateId), JNitroManeuver::fromCpp(maneuvers));
   }
+  void JHybridMapTemplateSpec::registerManeuvers(const std::string& templateId, const std::vector<NitroRoutingManeuver>& maneuvers) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* templateId */, jni::alias_ref<jni::JArrayClass<JNitroRoutingManeuver>> /* maneuvers */)>("registerManeuvers");
+    method(_javaPart, jni::make_jstring(templateId), [&](auto&& __input) {
+      size_t __size = __input.size();
+      jni::local_ref<jni::JArrayClass<JNitroRoutingManeuver>> __array = jni::JArrayClass<JNitroRoutingManeuver>::newArray(__size);
+      for (size_t __i = 0; __i < __size; __i++) {
+        const auto& __element = __input[__i];
+        auto __elementJni = JNitroRoutingManeuver::fromCpp(__element);
+        __array->setElement(__i, *__elementJni);
+      }
+      return __array;
+    }(maneuvers));
+  }
   void JHybridMapTemplateSpec::startNavigation(const std::string& templateId, const TripConfig& trip) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* templateId */, jni::alias_ref<JTripConfig> /* trip */)>("startNavigation");
     method(_javaPart, jni::make_jstring(templateId), JTripConfig::fromCpp(trip));
   }
-  void JHybridMapTemplateSpec::stopNavigation(const std::string& templateId) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* templateId */)>("stopNavigation");
-    method(_javaPart, jni::make_jstring(templateId));
+  void JHybridMapTemplateSpec::stopNavigation(const std::string& templateId, NavigationStopReason reason) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* templateId */, jni::alias_ref<JNavigationStopReason> /* reason */)>("stopNavigation");
+    method(_javaPart, jni::make_jstring(templateId), JNavigationStopReason::fromCpp(reason));
   }
   void JHybridMapTemplateSpec::setManeuverState(const std::string& templateId, ManeuverState state) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* templateId */, jni::alias_ref<JManeuverState> /* state */)>("setManeuverState");

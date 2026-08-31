@@ -8,6 +8,7 @@ export const useVoiceInput = () => {
     | {
         coordinates: Location | undefined;
         query: string | undefined;
+        requestType: string;
       }
     | undefined
   >();
@@ -38,12 +39,8 @@ export const useVoiceInput = () => {
       return;
     }
 
-    const remove = HybridAutoPlay.addListenerVoiceInput((coordinates, query) => {
-      if (coordinates || query) {
-        setVoiceInputResult({ coordinates, query });
-      } else {
-        setVoiceInputResult(undefined);
-      }
+    const remove = HybridAutoPlay.addListenerVoiceInput((coordinates, query, requestType) => {
+      setVoiceInputResult({ coordinates, query, requestType });
     });
 
     return () => {

@@ -132,27 +132,45 @@ class HybridMapTemplate : HybridMapTemplateSpec() {
         templateId: String, visibleTravelEstimate: VisibleTravelEstimate
     ) {
         val template = AndroidAutoTemplate.getTemplate<MapTemplate>(templateId)
-        template.updateVisibleTravelEstimate(visibleTravelEstimate)
+        UiThreadUtil.runOnUiThread {
+            template.updateVisibleTravelEstimate(visibleTravelEstimate)
+        }
     }
 
     override fun updateTravelEstimates(templateId: String, steps: Array<TripPoint>) {
-        MapTemplate.updateTravelEstimates(steps)
+        UiThreadUtil.runOnUiThread {
+            MapTemplate.updateTravelEstimates(steps)
+        }
     }
 
     override fun updateManeuvers(
         templateId: String, maneuvers: NitroManeuver
     ) {
-        MapTemplate.updateManeuvers(maneuvers)
+        UiThreadUtil.runOnUiThread {
+            MapTemplate.updateManeuvers(maneuvers)
+        }
+    }
+
+    override fun registerManeuvers(
+        templateId: String, maneuvers: Array<NitroRoutingManeuver>
+    ) {
+        // Android Auto receives the current and next maneuver through updateManeuvers.
     }
 
     override fun startNavigation(
         templateId: String, trip: TripConfig
     ) {
-        MapTemplate.startNavigation(trip)
+        UiThreadUtil.runOnUiThread {
+            MapTemplate.startNavigation(trip)
+        }
     }
 
-    override fun stopNavigation(templateId: String) {
-        MapTemplate.stopNavigation()
+    override fun stopNavigation(
+        templateId: String, reason: NavigationStopReason
+    ) {
+        UiThreadUtil.runOnUiThread {
+            MapTemplate.stopNavigation()
+        }
     }
 
     override fun setManeuverState(templateId: String, state: ManeuverState) {

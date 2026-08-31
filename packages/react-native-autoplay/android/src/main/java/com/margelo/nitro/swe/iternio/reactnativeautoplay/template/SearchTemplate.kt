@@ -60,7 +60,7 @@ class SearchTemplate(context: CarContext, config: SearchTemplateConfig) :
 
     fun updateSearchResults(results: NitroSection) {
         config = config.copy(results = results)
-        super.applyConfigUpdate()
+        super.applyConfigUpdate(immediate = true)
     }
 
     override fun setTemplateHeaderActions(headerActions: Array<NitroAction>?) {

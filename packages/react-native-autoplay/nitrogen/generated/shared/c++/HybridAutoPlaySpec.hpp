@@ -68,7 +68,7 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
       // Methods
       virtual std::function<void()> addListener(EventName eventType, const std::function<void()>& callback) = 0;
       virtual std::function<void()> addListenerRenderState(const std::string& moduleName, const std::function<void(VisibilityState /* payload */)>& callback) = 0;
-      virtual std::function<void()> addListenerVoiceInput(const std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */)>& callback) = 0;
+      virtual std::function<void()> addListenerVoiceInput(const std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */, const std::string& /* requestType */)>& callback) = 0;
       virtual std::shared_ptr<Promise<void>> setRootTemplate(const std::string& templateId) = 0;
       virtual std::shared_ptr<Promise<void>> pushTemplate(const std::string& templateId) = 0;
       virtual std::shared_ptr<Promise<void>> popTemplate(std::optional<bool> animate) = 0;

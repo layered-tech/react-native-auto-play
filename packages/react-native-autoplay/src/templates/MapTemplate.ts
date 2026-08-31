@@ -8,7 +8,7 @@ import { WindowInformationWrapper } from '../components/WindowInformationWrapper
 import { HybridAutoPlay } from '../hybrid/HybridAutoPlay';
 import type { MapTemplate as NitroMapTemplate } from '../specs/MapTemplate.nitro';
 import type { ActionButtonAndroid, MapButton, MapPanButton } from '../types/Button';
-import type { AutoManeuver, ManeuverState } from '../types/Maneuver';
+import type { AutoManeuver, ManeuverState, RoutingManeuver } from '../types/Maneuver';
 import type { ColorScheme, RootComponentInitialProps } from '../types/RootComponent';
 import type {
   TripConfig,
@@ -33,6 +33,11 @@ const HybridMapTemplate = NitroModules.createHybridObject<NitroMapTemplate>('Map
 
 export type Point = { x: number; y: number };
 export type VisibleTravelEstimate = 'first' | 'last';
+
+export enum NavigationStopReason {
+  Arrived = 0,
+  Cancelled = 1,
+}
 
 export type HeaderActionsAndroidMap<T> = Array<ActionButtonAndroid<T>> & { length: 1 | 2 | 3 | 4 };
 
@@ -169,6 +174,18 @@ export type MapTemplateConfig = Omit<
 
 export interface TripSelectorCallback {
   setSelectedTrip: (id: string) => void;
+}
+
+function convertRoutingManeuvers(
+  maneuvers: Array<RoutingManeuver | null | undefined>
+): Array<NitroRoutingManeuver> {
+  return maneuvers.reduce<Array<NitroRoutingManeuver>>((convertedManeuvers, maneuver) => {
+    if (maneuver != null) {
+      convertedManeuvers.push(NitroManeuverUtil.convert(maneuver));
+    }
+
+    return convertedManeuvers;
+  }, []);
 }
 
 export class MapTemplate extends Template<MapTemplateConfig, MapTemplateConfig['headerActions']> {
@@ -333,16 +350,7 @@ export class MapTemplate extends Template<MapTemplateConfig, MapTemplateConfig['
    */
   public updateManeuvers(maneuvers: AutoManeuver) {
     if (Array.isArray(maneuvers)) {
-      const nitroManeuvers = maneuvers.reduce((acc, maneuver) => {
-        if (maneuver == null) {
-          return acc;
-        }
-
-        acc.push(NitroManeuverUtil.convert(maneuver));
-        return acc;
-      }, [] as NitroRoutingManeuver[]);
-
-      HybridMapTemplate.updateManeuvers(this.id, nitroManeuvers);
+      HybridMapTemplate.updateManeuvers(this.id, convertRoutingManeuvers(maneuvers));
       return;
     }
 
@@ -360,6 +368,14 @@ export class MapTemplate extends Template<MapTemplateConfig, MapTemplateConfig['
   }
 
   /**
+   * Registers the complete known route for vehicle displays while updateManeuvers
+   * continues to control the smaller visible maneuver window.
+   */
+  public registerManeuvers(maneuvers: Array<RoutingManeuver>) {
+    HybridMapTemplate.registerManeuvers(this.id, convertRoutingManeuvers(maneuvers));
+  }
+
+  /**
    * either use showTripSelector to show a set of trips and let the user start the navigation session
    * or use this to start a navigation session without asking the user
    */
@@ -367,8 +383,8 @@ export class MapTemplate extends Template<MapTemplateConfig, MapTemplateConfig['
     HybridMapTemplate.startNavigation(this.id, trip);
   }
 
-  public stopNavigation() {
-    HybridMapTemplate.stopNavigation(this.id);
+  public stopNavigation(reason = NavigationStopReason.Cancelled) {
+    HybridMapTemplate.stopNavigation(this.id, reason);
   }
 
   /**

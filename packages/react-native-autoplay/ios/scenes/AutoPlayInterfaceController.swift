@@ -115,31 +115,29 @@ class AutoPlayInterfaceController: NSObject, CPInterfaceControllerDelegate {
     func popToTemplate(templateId: String, animated: Bool) async throws
         -> [String]
     {
+        let templates = interfaceController.templates
+
         guard
-            let template = interfaceController.templates.first(
+            let targetIndex = templates.firstIndex(
                 where: {
                     templateId == $0.id
-                })
+                }),
+            targetIndex < templates.index(before: templates.endIndex)
         else { return [] }
 
-        var templateIds: [String] = interfaceController.templates.map {
-            template in template.id
-        }
-
-        if let startIndex = templateIds.firstIndex(where: {
-            $0 == templateId
-        }),
-            let endIndex = templateIds.firstIndex(where: {
-                $0 == topTemplateId
-            })
-        {
-            templateIds = Array(templateIds[(startIndex)..<endIndex])
-        }
+        let template = templates[targetIndex]
+        let templateIds = templates[
+            templates.index(after: targetIndex)..<templates.endIndex
+        ].map { $0.id }
 
         try await interfaceController.pop(
             to: template,
             animated: animated
         )
+
+        try RootModule.withTemplateStore { templateStore in
+            templateStore.removeTemplates(templateIds: templateIds)
+        }
 
         return templateIds
     }

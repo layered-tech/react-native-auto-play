@@ -57,12 +57,6 @@ class HeadUnitSceneDelegate: AutoPlayScene, CPTemplateApplicationSceneDelegate {
         didDisconnect interfaceController: CPInterfaceController,
         from window: CPWindow
     ) {
-        if let mapTemplate = try? templateStore.getTemplate(
-            templateId: SceneStore.rootModuleName
-        ) as? MapTemplate {
-            mapTemplate.stopNavigation()
-        }
-
         disconnect()
 
         HybridAutoPlay.emit(event: .diddisconnect)

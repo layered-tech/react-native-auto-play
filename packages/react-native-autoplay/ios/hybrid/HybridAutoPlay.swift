@@ -120,7 +120,7 @@ class HybridAutoPlay: HybridAutoPlaySpec {
     }
 
     func addListenerVoiceInput(
-        callback: @escaping (Location?, String?) -> Void
+        callback: @escaping (Location?, String?, String) -> Void
     ) throws -> () -> Void {
         // iOS does not use the OS-triggered voice input path — use HybridVoice instead.
         return {}
@@ -211,15 +211,17 @@ class HybridAutoPlay: HybridAutoPlaySpec {
             try await RootModule.withInterfaceController {
                 interfaceController in
 
+                let animated = animate ?? true
+
                 if try await interfaceController.dismissTemplate(
-                    animated: animate ?? true
+                    animated: animated
                 ) {
                     return
                 }
 
                 guard
                     let templateId = try await interfaceController.popTemplate(
-                        animated: true
+                        animated: animated
                     )
                 else { return }
                 HybridAutoPlay.removeListeners(templateId: templateId)
@@ -255,13 +257,14 @@ class HybridAutoPlay: HybridAutoPlaySpec {
             try await RootModule.withInterfaceController {
                 interfaceController in
 
-                let _ = try await interfaceController.dismissTemplate(
-                    animated: animate ?? true
-                )
+                let hasPresentedTemplate =
+                    try await interfaceController.dismissTemplate(
+                        animated: false
+                    )
 
                 let templateIds = try await interfaceController.popToTemplate(
                     templateId: templateId,
-                    animated: true
+                    animated: !hasPresentedTemplate && (animate ?? true)
                 )
                 templateIds.forEach { templateId in
                     HybridAutoPlay.removeListeners(templateId: templateId)

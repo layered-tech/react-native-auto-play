@@ -100,6 +100,8 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class Traffic
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ManeuverType; }
 // Forward declaration of `TripConfig` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct TripConfig; }
+// Forward declaration of `NavigationStopReason` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class NavigationStopReason; }
 // Forward declaration of `ManeuverState` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ManeuverState; }
 
@@ -153,6 +155,7 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class Maneuve
 #include "TrafficSide.hpp"
 #include "ManeuverType.hpp"
 #include "TripConfig.hpp"
+#include "NavigationStopReason.hpp"
 #include "ManeuverState.hpp"
 
 #include "ReactNativeAutoPlay-Swift-Cxx-Umbrella.hpp"
@@ -269,14 +272,20 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
         std::rethrow_exception(__result.error());
       }
     }
+    inline void registerManeuvers(const std::string& templateId, const std::vector<NitroRoutingManeuver>& maneuvers) override {
+      auto __result = _swiftPart.registerManeuvers(templateId, maneuvers);
+      if (__result.hasError()) [[unlikely]] {
+        std::rethrow_exception(__result.error());
+      }
+    }
     inline void startNavigation(const std::string& templateId, const TripConfig& trip) override {
       auto __result = _swiftPart.startNavigation(templateId, std::forward<decltype(trip)>(trip));
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
       }
     }
-    inline void stopNavigation(const std::string& templateId) override {
-      auto __result = _swiftPart.stopNavigation(templateId);
+    inline void stopNavigation(const std::string& templateId, NavigationStopReason reason) override {
+      auto __result = _swiftPart.stopNavigation(templateId, static_cast<int>(reason));
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
       }

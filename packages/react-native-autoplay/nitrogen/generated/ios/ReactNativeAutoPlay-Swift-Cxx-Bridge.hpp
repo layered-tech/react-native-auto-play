@@ -316,26 +316,26 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay::bridge::swift {
     return optional.value();
   }
   
-  // pragma MARK: std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */)>
+  // pragma MARK: std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */, const std::string& /* requestType */)>
   /**
-   * Specialized version of `std::function<void(const std::optional<Location>&, const std::optional<std::string>&)>`.
+   * Specialized version of `std::function<void(const std::optional<Location>&, const std::optional<std::string>&, const std::string&)>`.
    */
-  using Func_void_std__optional_Location__std__optional_std__string_ = std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */)>;
+  using Func_void_std__optional_Location__std__optional_std__string__std__string = std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */, const std::string& /* requestType */)>;
   /**
-   * Wrapper class for a `std::function<void(const std::optional<Location>& / * coordinates * /, const std::optional<std::string>& / * query * /)>`, this can be used from Swift.
+   * Wrapper class for a `std::function<void(const std::optional<Location>& / * coordinates * /, const std::optional<std::string>& / * query * /, const std::string& / * requestType * /)>`, this can be used from Swift.
    */
-  class Func_void_std__optional_Location__std__optional_std__string__Wrapper final {
+  class Func_void_std__optional_Location__std__optional_std__string__std__string_Wrapper final {
   public:
-    explicit Func_void_std__optional_Location__std__optional_std__string__Wrapper(std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */)>&& func): _function(std::make_unique<std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */)>>(std::move(func))) {}
-    inline void call(std::optional<Location> coordinates, std::optional<std::string> query) const noexcept {
-      _function->operator()(coordinates, query);
+    explicit Func_void_std__optional_Location__std__optional_std__string__std__string_Wrapper(std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */, const std::string& /* requestType */)>&& func): _function(std::make_unique<std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */, const std::string& /* requestType */)>>(std::move(func))) {}
+    inline void call(std::optional<Location> coordinates, std::optional<std::string> query, std::string requestType) const noexcept {
+      _function->operator()(coordinates, query, requestType);
     }
   private:
-    std::unique_ptr<std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */)>> _function;
+    std::unique_ptr<std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */, const std::string& /* requestType */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_std__optional_Location__std__optional_std__string_ create_Func_void_std__optional_Location__std__optional_std__string_(void* NON_NULL swiftClosureWrapper) noexcept;
-  inline Func_void_std__optional_Location__std__optional_std__string__Wrapper wrap_Func_void_std__optional_Location__std__optional_std__string_(Func_void_std__optional_Location__std__optional_std__string_ value) noexcept {
-    return Func_void_std__optional_Location__std__optional_std__string__Wrapper(std::move(value));
+  Func_void_std__optional_Location__std__optional_std__string__std__string create_Func_void_std__optional_Location__std__optional_std__string__std__string(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_std__optional_Location__std__optional_std__string__std__string_Wrapper wrap_Func_void_std__optional_Location__std__optional_std__string__std__string(Func_void_std__optional_Location__std__optional_std__string__std__string value) noexcept {
+    return Func_void_std__optional_Location__std__optional_std__string__std__string_Wrapper(std::move(value));
   }
   
   // pragma MARK: std::shared_ptr<Promise<void>>

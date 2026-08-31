@@ -6,8 +6,25 @@
 //
 
 import CarPlay
+import Foundation
 
 class RootModule {
+    static func performOnMainActor<Result>(
+        _ action: @MainActor @escaping () throws -> Result
+    ) throws -> Result {
+        if Thread.isMainThread {
+            return try MainActor.assumeIsolated {
+                try action()
+            }
+        }
+
+        return try DispatchQueue.main.sync {
+            try MainActor.assumeIsolated {
+                try action()
+            }
+        }
+    }
+
     static func withScene(
         perform action: @escaping (AutoPlayScene) throws -> Void
     ) throws {
@@ -22,17 +39,19 @@ class RootModule {
         try action(scene)
     }
 
+    @MainActor
     static func withTemplateStore(
-        perform action: @escaping (TemplateStore) throws -> Void
+        perform action: @MainActor @escaping (TemplateStore) throws -> Void
     ) throws {
         try withScene { rootScene in
             try action(rootScene.templateStore)
         }
     }
 
+    @MainActor
     static func withAutoPlayTemplate<T>(
         templateId: String,
-        perform action: @escaping (T) throws -> Void
+        perform action: @MainActor @escaping (T) throws -> Void
     ) throws {
         try withScene { rootScene in
             let template = try rootScene.templateStore.getTemplate(

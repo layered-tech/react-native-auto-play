@@ -12,11 +12,11 @@ import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Template
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import com.facebook.react.bridge.LifecycleEventListener
-import com.margelo.nitro.NitroModules
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.AndroidAutoTemplate
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.MapTemplate
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.AppInfo
+import java.net.URLDecoder
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -85,29 +85,15 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
         }
 
         lifecycle.addObserver(sessionLifecycleObserver)
-        NitroModules.applicationContext?.addLifecycleEventListener(reactLifecycleObserver)
 
         if (clusterId == null) {
             HybridAutoPlay.emit(EventName.DIDCONNECT)
+            handleNavigationIntent(intent)
         } else {
             HybridCluster.emit(ClusterEventName.DIDCONNECTWITHWINDOW, clusterId)
         }
 
         return screen
-
-        // TODO this is not required for templates that host a component, check if we need this for non-rendering templates
-        /*
-        val appRegistry = reactContext.getJSModule(AppRegistry::class.java)
-            ?: throw ClassNotFoundException("could not get AppRegistry instance")
-        val jsAppModuleName = if (isCluster) "AndroidAutoCluster" else "AndroidAuto"
-        val appParams = WritableNativeMap().apply {
-            putMap("initialProps", Arguments.createMap().apply {
-                putString("id", clusterTemplateId)
-            })
-        }
-
-        appRegistry.runApplication(jsAppModuleName, appParams)
-        */
     }
 
     override fun onCarConfigurationChanged(configuration: Configuration) {
@@ -130,60 +116,417 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
     }
 
     override fun onNewIntent(intent: Intent) {
-        val action = intent.action ?: return
+        super.onNewIntent(intent)
+        handleNavigationIntent(intent)
+    }
 
-        if (action == CarContext.ACTION_NAVIGATE) {
-            intent.data?.schemeSpecificPart?.let { schemeSpecificPart ->
-                try {
-                    // Parse the geo URI format: lat,lon?q=query&mode=x&intent=y
-                    val queryIndex = schemeSpecificPart.indexOf("?q=")
+    private enum class NavigationSchemeClass(val logValue: String) {
+        MISSING("missing"),
+        GEO("geo"),
+        OTHER("other")
+    }
 
-                    val location = if (queryIndex > 0) {
-                        val coordinatesPart = schemeSpecificPart.substring(0, queryIndex)
-                        parseCoordinates(coordinatesPart)
-                    } else {
-                        null
-                    }
+    private enum class NavigationCoordinateState(val logValue: String) {
+        MISSING("missing"),
+        ZERO("zero"),
+        VALID("valid"),
+        INVALID("invalid")
+    }
 
-                    val query = if (queryIndex >= 0) {
-                        val queryPart = schemeSpecificPart.substring(queryIndex + 3) // Skip "?q="
-                        val additionalParamsIndex = queryPart.indexOf('&')
+    private enum class NavigationIntentClass(val logValue: String) {
+        MISSING("missing"),
+        NAVIGATION("navigation"),
+        DIRECTIONS("directions"),
+        ADD_A_STOP("add_a_stop"),
+        UNSUPPORTED("unsupported"),
+        DUPLICATE("duplicate"),
+        MALFORMED("malformed")
+    }
 
-                        if (additionalParamsIndex >= 0) {
-                            val rawQuery = queryPart.substring(0, additionalParamsIndex)
-                            java.net.URLDecoder.decode(rawQuery, "UTF-8")
-                        } else {
-                            java.net.URLDecoder.decode(queryPart, "UTF-8")
-                        }
-                    } else {
-                        java.net.URLDecoder.decode(schemeSpecificPart, "UTF-8")
-                    }
+    private enum class NavigationRequestType(val bridgeValue: String) {
+        NAVIGATION("navigation"),
+        DIRECTIONS("directions"),
+        SEARCH("search"),
+        QUERY("query")
+    }
 
-                    HybridAutoPlay.emitVoiceInput(location, query)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to parse navigation intent: ${e.message}")
+    private enum class NavigationRejectionReason(val logValue: String) {
+        MISSING_DATA("missing_data"),
+        UNSUPPORTED_SCHEME("unsupported_scheme"),
+        NON_OPAQUE_GEO_URI("non_opaque_geo_uri"),
+        FRAGMENT_NOT_SUPPORTED("fragment_not_supported"),
+        MISSING_SCHEME_SPECIFIC_PART("missing_scheme_specific_part"),
+        MALFORMED_ENCODING("malformed_encoding"),
+        DUPLICATE_QUERY("duplicate_query"),
+        DUPLICATE_INTENT("duplicate_intent"),
+        MALFORMED_COORDINATES("malformed_coordinates"),
+        UNSUPPORTED_ADD_STOP("unsupported_add_stop"),
+        UNSUPPORTED_INTENT("unsupported_intent"),
+        MISSING_DESTINATION("missing_destination")
+    }
+
+    private data class ParsedNavigationCoordinates(
+        val state: NavigationCoordinateState,
+        val location: Location? = null
+    )
+
+    private data class ParsedNavigationParameters(
+        val query: String?,
+        val queryPresent: Boolean,
+        val intentPresent: Boolean,
+        val intentClass: NavigationIntentClass,
+        val rejectionReason: NavigationRejectionReason? = null
+    )
+
+    private fun handleNavigationIntent(intent: Intent) {
+        val isSearchRequest = intent.action == Intent.ACTION_VIEW
+
+        if (!isSearchRequest && intent.action != CarContext.ACTION_NAVIGATE) {
+            return
+        }
+
+        val data = intent.data
+        if (data == null) {
+            logNavigationIntentRejection(
+                NavigationRejectionReason.MISSING_DATA,
+                NavigationSchemeClass.MISSING,
+                NavigationCoordinateState.MISSING,
+                queryPresent = false,
+                intentClass = NavigationIntentClass.MISSING
+            )
+            return
+        }
+
+        val schemeClass = when {
+            data.scheme == null -> NavigationSchemeClass.MISSING
+            data.scheme.equals("geo", ignoreCase = true) -> NavigationSchemeClass.GEO
+            else -> NavigationSchemeClass.OTHER
+        }
+        val encodedSchemeSpecificPart = data.encodedSchemeSpecificPart
+        val coordinates = if (encodedSchemeSpecificPart.isNullOrBlank()) {
+            ParsedNavigationCoordinates(NavigationCoordinateState.MISSING)
+        } else {
+            parseNavigationCoordinates(encodedSchemeSpecificPart.substringBefore('?'))
+        }
+        val parameters = if (encodedSchemeSpecificPart.isNullOrBlank()) {
+            ParsedNavigationParameters(
+                query = null,
+                queryPresent = false,
+                intentPresent = false,
+                intentClass = NavigationIntentClass.MISSING
+            )
+        } else {
+            parseNavigationParameters(encodedSchemeSpecificPart.substringAfter('?', ""))
+        }
+
+        if (schemeClass != NavigationSchemeClass.GEO) {
+            logNavigationIntentRejection(
+                NavigationRejectionReason.UNSUPPORTED_SCHEME,
+                schemeClass,
+                coordinates.state,
+                parameters.queryPresent,
+                parameters.intentClass
+            )
+            return
+        }
+
+        if (!data.isOpaque) {
+            logNavigationIntentRejection(
+                NavigationRejectionReason.NON_OPAQUE_GEO_URI,
+                schemeClass,
+                coordinates.state,
+                parameters.queryPresent,
+                parameters.intentClass
+            )
+            return
+        }
+
+        if (data.fragment != null) {
+            logNavigationIntentRejection(
+                NavigationRejectionReason.FRAGMENT_NOT_SUPPORTED,
+                schemeClass,
+                coordinates.state,
+                parameters.queryPresent,
+                parameters.intentClass
+            )
+            return
+        }
+
+        if (encodedSchemeSpecificPart.isNullOrBlank()) {
+            logNavigationIntentRejection(
+                NavigationRejectionReason.MISSING_SCHEME_SPECIFIC_PART,
+                schemeClass,
+                NavigationCoordinateState.MISSING,
+                queryPresent = false,
+                intentClass = NavigationIntentClass.MISSING
+            )
+            return
+        }
+
+        parameters.rejectionReason?.let { rejectionReason ->
+            logNavigationIntentRejection(
+                rejectionReason,
+                schemeClass,
+                coordinates.state,
+                parameters.queryPresent,
+                parameters.intentClass
+            )
+            return
+        }
+
+        when (parameters.intentClass) {
+            NavigationIntentClass.ADD_A_STOP -> {
+                logNavigationIntentRejection(
+                    NavigationRejectionReason.UNSUPPORTED_ADD_STOP,
+                    schemeClass,
+                    coordinates.state,
+                    parameters.queryPresent,
+                    parameters.intentClass
+                )
+                return
+            }
+
+            NavigationIntentClass.UNSUPPORTED -> {
+                logNavigationIntentRejection(
+                    NavigationRejectionReason.UNSUPPORTED_INTENT,
+                    schemeClass,
+                    coordinates.state,
+                    parameters.queryPresent,
+                    parameters.intentClass
+                )
+                return
+            }
+
+            else -> Unit
+        }
+
+        if (coordinates.state == NavigationCoordinateState.INVALID) {
+            logNavigationIntentRejection(
+                NavigationRejectionReason.MALFORMED_COORDINATES,
+                schemeClass,
+                coordinates.state,
+                parameters.queryPresent,
+                parameters.intentClass
+            )
+            return
+        }
+
+        val requestType = when {
+            isSearchRequest -> NavigationRequestType.SEARCH
+            parameters.intentClass == NavigationIntentClass.DIRECTIONS ->
+                NavigationRequestType.DIRECTIONS
+            coordinates.state == NavigationCoordinateState.ZERO &&
+                parameters.query != null &&
+                !parameters.intentPresent -> NavigationRequestType.QUERY
+            else -> NavigationRequestType.NAVIGATION
+        }
+
+        if (coordinates.state == NavigationCoordinateState.VALID) {
+            logNavigationIntentAccepted(
+                requestType,
+                coordinates.state,
+                parameters.queryPresent,
+                parameters.intentClass
+            )
+            HybridAutoPlay.emitVoiceInput(
+                coordinates.location,
+                parameters.query,
+                requestType.bridgeValue
+            )
+            return
+        }
+
+        if (
+            coordinates.state == NavigationCoordinateState.ZERO &&
+            parameters.query != null &&
+            (
+                parameters.intentClass == NavigationIntentClass.NAVIGATION ||
+                    parameters.intentClass == NavigationIntentClass.DIRECTIONS
+                )
+        ) {
+            logNavigationIntentAccepted(
+                requestType,
+                coordinates.state,
+                parameters.queryPresent,
+                parameters.intentClass
+            )
+            HybridAutoPlay.emitVoiceInput(
+                null,
+                parameters.query,
+                requestType.bridgeValue
+            )
+            return
+        }
+
+        logNavigationIntentRejection(
+            NavigationRejectionReason.MISSING_DESTINATION,
+            schemeClass,
+            coordinates.state,
+            parameters.queryPresent,
+            parameters.intentClass
+        )
+    }
+
+    private fun logNavigationIntentAccepted(
+        requestType: NavigationRequestType,
+        coordinateState: NavigationCoordinateState,
+        queryPresent: Boolean,
+        intentClass: NavigationIntentClass
+    ) {
+        Log.i(
+            TAG,
+            "Accepted voice intent " +
+                "requestType=${requestType.bridgeValue} " +
+                "coordinateState=${coordinateState.logValue} " +
+                "queryPresent=$queryPresent " +
+                "intentClass=${intentClass.logValue}"
+        )
+    }
+
+    private fun parseNavigationParameters(encodedQuery: String): ParsedNavigationParameters {
+        val queryValues = mutableListOf<String>()
+        val intentValues = mutableListOf<String>()
+        val queryPresent = hasEncodedNavigationParameter(encodedQuery, "q")
+        val intentPresent = hasEncodedNavigationParameter(encodedQuery, "intent")
+
+        try {
+            encodedQuery.split('&').forEach { encodedParameter ->
+                if (encodedParameter.isEmpty()) {
+                    return@forEach
                 }
+
+                val encodedKey = encodedParameter.substringBefore('=')
+                val decodedKey = URLDecoder.decode(encodedKey, Charsets.UTF_8.name())
+
+                if (decodedKey != "q" && decodedKey != "intent") {
+                    return@forEach
+                }
+
+                val decodedValue = URLDecoder.decode(
+                    encodedParameter.substringAfter('=', ""),
+                    Charsets.UTF_8.name()
+                )
+
+                if (decodedKey == "q") {
+                    queryValues.add(decodedValue)
+                } else {
+                    intentValues.add(decodedValue)
+                }
+            }
+        } catch (_: IllegalArgumentException) {
+            return ParsedNavigationParameters(
+                query = null,
+                queryPresent = queryPresent,
+                intentPresent = intentPresent,
+                intentClass = NavigationIntentClass.MALFORMED,
+                rejectionReason = NavigationRejectionReason.MALFORMED_ENCODING
+            )
+        }
+
+        val intentClass = when {
+            intentValues.size > 1 -> NavigationIntentClass.DUPLICATE
+            intentValues.isEmpty() -> NavigationIntentClass.NAVIGATION
+            else -> when (intentValues.single().trim().lowercase(Locale.ROOT)) {
+                "navigation" -> NavigationIntentClass.NAVIGATION
+                "directions" -> NavigationIntentClass.DIRECTIONS
+                "add_a_stop" -> NavigationIntentClass.ADD_A_STOP
+                else -> NavigationIntentClass.UNSUPPORTED
+            }
+        }
+
+        if (queryValues.size > 1) {
+            return ParsedNavigationParameters(
+                query = null,
+                queryPresent = true,
+                intentPresent = intentPresent,
+                intentClass = intentClass,
+                rejectionReason = NavigationRejectionReason.DUPLICATE_QUERY
+            )
+        }
+
+        if (intentValues.size > 1) {
+            return ParsedNavigationParameters(
+                query = queryValues.singleOrNull()?.trim()?.takeIf { it.isNotEmpty() },
+                queryPresent = queryPresent,
+                intentPresent = intentPresent,
+                intentClass = intentClass,
+                rejectionReason = NavigationRejectionReason.DUPLICATE_INTENT
+            )
+        }
+
+        return ParsedNavigationParameters(
+            query = queryValues.singleOrNull()?.trim()?.takeIf { it.isNotEmpty() },
+            queryPresent = queryPresent,
+            intentPresent = intentPresent,
+            intentClass = intentClass
+        )
+    }
+
+    private fun hasEncodedNavigationParameter(
+        encodedQuery: String,
+        parameterName: String
+    ): Boolean {
+        return encodedQuery.split('&').any { encodedParameter ->
+            try {
+                URLDecoder.decode(
+                    encodedParameter.substringBefore('='),
+                    Charsets.UTF_8.name()
+                ) == parameterName
+            } catch (_: IllegalArgumentException) {
+                false
             }
         }
     }
 
-    /**
-     * Parses coordinates from a string in format "lat,lon".
-     * Returns null for invalid formats or 0,0 coordinates (which indicate "use geocoding").
-     */
-    private fun parseCoordinates(coordinatesPart: String): Location? {
-        val parts = coordinatesPart.split(",")
-        if (parts.size != 2) return null
-
-        val lat = parts[0].toDoubleOrNull() ?: return null
-        val lon = parts[1].toDoubleOrNull() ?: return null
-
-        // Treat 0,0 as "no coordinates" - it means use geocoding for the query
-        if (lat == 0.0 && lon == 0.0) {
-            return null
+    private fun parseNavigationCoordinates(coordinatesPart: String): ParsedNavigationCoordinates {
+        if (coordinatesPart.isEmpty()) {
+            return ParsedNavigationCoordinates(NavigationCoordinateState.INVALID)
         }
 
-        return Location(lat, lon)
+        val parts = coordinatesPart.split(",")
+        if (parts.size != 2) {
+            return ParsedNavigationCoordinates(NavigationCoordinateState.INVALID)
+        }
+
+        val lat = parts[0].toDoubleOrNull()
+            ?: return ParsedNavigationCoordinates(NavigationCoordinateState.INVALID)
+        val lon = parts[1].toDoubleOrNull()
+            ?: return ParsedNavigationCoordinates(NavigationCoordinateState.INVALID)
+
+        if (!lat.isFinite() || !lon.isFinite()) {
+            return ParsedNavigationCoordinates(NavigationCoordinateState.INVALID)
+        }
+
+        if (lat !in -90.0..90.0 || lon !in -180.0..180.0) {
+            return ParsedNavigationCoordinates(NavigationCoordinateState.INVALID)
+        }
+
+        if (lat == 0.0 && lon == 0.0) {
+            return ParsedNavigationCoordinates(NavigationCoordinateState.ZERO)
+        }
+
+        return ParsedNavigationCoordinates(
+            NavigationCoordinateState.VALID,
+            Location(lat, lon)
+        )
+    }
+
+    private fun logNavigationIntentRejection(
+        reason: NavigationRejectionReason,
+        schemeClass: NavigationSchemeClass,
+        coordinateState: NavigationCoordinateState,
+        queryPresent: Boolean,
+        intentClass: NavigationIntentClass
+    ) {
+        Log.w(
+            TAG,
+            "Rejected navigation intent " +
+                "reason=${reason.logValue} " +
+                "scheme=${schemeClass.logValue} " +
+                "coordinateState=${coordinateState.logValue} " +
+                "queryPresent=$queryPresent " +
+                "intentClass=${intentClass.logValue}"
+        )
     }
 
     private val sessionLifecycleObserver = object : DefaultLifecycleObserver {
@@ -216,17 +559,8 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
                 return
             }
 
+            HybridAutoPlay.clearPendingVoiceInput()
             HybridAutoPlay.emit(EventName.DIDDISCONNECT)
-        }
-    }
-
-    private val reactLifecycleObserver = object : LifecycleEventListener {
-        override fun onHostResume() {}
-
-        override fun onHostPause() {}
-
-        override fun onHostDestroy() {
-            carContext.finishCarApp()
         }
     }
 

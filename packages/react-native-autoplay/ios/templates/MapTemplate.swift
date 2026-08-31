@@ -35,6 +35,8 @@ class MapTemplate: AutoPlayHeaderProviding,
     var navigationSession: CPNavigationSession?
     var navigationAlert: NavigationAlertWrapper?
     var currentTripId: String?
+    var currentRouteId: String?
+    var navigationManeuversById: [String: CPManeuver] = [:]
 
     var tripSelectorVisible = false
     /**
@@ -50,6 +52,8 @@ class MapTemplate: AutoPlayHeaderProviding,
         visibleTravelEstimate = config.visibleTravelEstimate
 
         template = CPMapTemplate(id: config.id)
+        template.automaticallyHidesNavigationBar = false
+        template.hidesButtonsWithNavigationBar = false
         if let nitroColor = config.defaultGuidanceBackgroundColor,
             let traitCollection = SceneStore.getRootTraitCollection()
         {
@@ -81,6 +85,11 @@ class MapTemplate: AutoPlayHeaderProviding,
 
         barButtons = config.headerActions
         template.mapDelegate = self
+    }
+
+    @objc(mapTemplateShouldProvideRouteSharing:)
+    func mapTemplateShouldProvideRouteSharing(_ mapTemplate: CPMapTemplate) -> Bool {
+        return false
     }
 
     func onPanButtonPress() {
@@ -319,9 +328,11 @@ class MapTemplate: AutoPlayHeaderProviding,
 
     // MARK: navigation events
     func mapTemplateDidCancelNavigation(_ mapTemplate: CPMapTemplate) {
+        stopNavigation(reason: .cancelled)
         config.onStopNavigation()
     }
 
+    @objc(mapTemplateShouldProvideNavigationMetadata:)
     func mapTemplateShouldProvideNavigationMetadata(
         _ mapTemplate: CPMapTemplate
     ) -> Bool {
@@ -526,14 +537,16 @@ class MapTemplate: AutoPlayHeaderProviding,
         }
 
         let callback = TripSelectorCallback { tripId in
-            let selectedTrip = tripPreviews.first { trip in
-                trip.id == tripId
+            Task { @MainActor in
+                let selectedTrip = tripPreviews.first { trip in
+                    trip.id == tripId
+                }
+                self.template.showTripPreviews(
+                    tripPreviews,
+                    selectedTrip: selectedTrip,
+                    textConfiguration: textConfiguration
+                )
             }
-            self.template.showTripPreviews(
-                tripPreviews,
-                selectedTrip: selectedTrip,
-                textConfiguration: textConfiguration
-            )
         }
 
         return callback
@@ -541,6 +554,7 @@ class MapTemplate: AutoPlayHeaderProviding,
 
     func hideTripSelector() {
         currentTripId = nil
+        currentRouteId = nil
         template.hideTripPreviews()
 
         tripSelectorVisible = false
@@ -556,14 +570,15 @@ class MapTemplate: AutoPlayHeaderProviding,
         using routeChoice: CPRouteChoice
     ) {
         let tripId = trip.id
+        let routeId = routeChoice.id
 
-        if currentTripId != nil && currentTripId == tripId {
+        if currentTripId == tripId && currentRouteId == routeId {
             return
         }
 
-        currentTripId = trip.id
+        currentTripId = tripId
+        currentRouteId = routeId
 
-        let routeId = routeChoice.id
         self.onTripSelected?(tripId, routeId)
 
         if let travelEstimates = trip.routeChoices.first(where: {
@@ -636,6 +651,10 @@ class MapTemplate: AutoPlayHeaderProviding,
     func updateManeuversLoading(loading: NitroLoadingManeuver) {
         guard let navigationSession = navigationSession else { return }
 
+        if #available(iOS 17.4, *) {
+            navigationSession.currentRoadNameVariants = []
+        }
+
         let description = loading.text
 
         guard let traitCollection = SceneStore.getRootTraitCollection() else {
@@ -664,6 +683,10 @@ class MapTemplate: AutoPlayHeaderProviding,
 
     func updateManeuvers(messageManeuver: NitroMessageManeuver) {
         guard let navigationSession = navigationSession else { return }
+
+        if #available(iOS 17.4, *) {
+            navigationSession.currentRoadNameVariants = []
+        }
 
         guard let traitCollection = SceneStore.getRootTraitCollection() else {
             return
@@ -697,11 +720,57 @@ class MapTemplate: AutoPlayHeaderProviding,
         navigationSession.upcomingManeuvers = [maneuver]
     }
 
+    func registerManeuvers(maneuvers: [NitroRoutingManeuver]) {
+        guard #available(iOS 17.4, *) else { return }
+        guard let navigationSession = navigationSession else { return }
+        guard let traitCollection = SceneStore.getRootTraitCollection() else {
+            return
+        }
+
+        var newlyRegisteredManeuvers: [CPManeuver] = []
+
+        for nitroManeuver in maneuvers {
+            if let maneuver = navigationManeuversById[nitroManeuver.id],
+                !maneuver.isSecondary
+            {
+                navigationSession.updateEstimates(
+                    Parser.parseTravelEstimates(
+                        travelEstimates: nitroManeuver.travelEstimates
+                    ),
+                    for: maneuver
+                )
+                continue
+            }
+
+            let maneuver = Parser.parseManeuver(
+                nitroManeuver: nitroManeuver,
+                traitCollection: traitCollection
+            )
+            navigationManeuversById[maneuver.id] = maneuver
+            newlyRegisteredManeuvers.append(maneuver)
+        }
+
+        guard !newlyRegisteredManeuvers.isEmpty else { return }
+
+        navigationSession.add(newlyRegisteredManeuvers)
+
+        let laneGuidances = newlyRegisteredManeuvers.compactMap {
+            $0.laneGuidance
+        }
+        if !laneGuidances.isEmpty {
+            navigationSession.add(laneGuidances)
+        }
+    }
+
     func updateManeuvers(maneuvers: [NitroRoutingManeuver]) {
         guard let navigationSession = navigationSession else { return }
 
         if maneuvers.isEmpty {
             navigationSession.upcomingManeuvers = []
+            if #available(iOS 17.4, *) {
+                navigationSession.currentLaneGuidance = nil
+                navigationSession.currentRoadNameVariants = []
+            }
             return
         }
 
@@ -717,107 +786,96 @@ class MapTemplate: AutoPlayHeaderProviding,
             template.guidanceBackgroundColor = Parser.parseColor(color: color)
         }
 
-        var upcomingManeuvers: [CPManeuver] = []
+        let currentManeuversById = Dictionary(
+            uniqueKeysWithValues: navigationSession.upcomingManeuvers.map {
+                ($0.id, $0)
+            }
+        )
+        var newlyRegisteredManeuvers: [CPManeuver] = []
 
-        let sessionManeuvers = navigationSession.upcomingManeuvers.filter {
-            maneuver in
-            !maneuver.isSecondary
-        }
-
-        for (index, nitroManeuver) in maneuvers.enumerated() {
-            if let maneuverIndex =
-                sessionManeuvers
-                .firstIndex(where: { $0.id == nitroManeuver.id })
-            {
-                navigationSession.updateEstimates(
-                    Parser.parseTravelEstimates(
-                        travelEstimates: nitroManeuver.travelEstimates
-                    ),
-                    for: sessionManeuvers[maneuverIndex]
+        var upcomingManeuvers = maneuvers.map { nitroManeuver in
+            let maneuver =
+                navigationManeuversById[nitroManeuver.id]
+                ?? currentManeuversById[nitroManeuver.id]
+                ?? Parser.parseManeuver(
+                    nitroManeuver: nitroManeuver,
+                    traitCollection: traitCollection
                 )
 
-                if index != maneuverIndex {
-                    if let maneuver = navigationSession.upcomingManeuvers.first(
-                        where: { $0.id == nitroManeuver.id }
-                    ) {
-                        upcomingManeuvers.append(maneuver)
-                    }
-                }
-                continue
+            if navigationManeuversById[maneuver.id] == nil {
+                navigationManeuversById[maneuver.id] = maneuver
+                newlyRegisteredManeuvers.append(maneuver)
             }
 
-            let maneuver = Parser.parseManeuver(
-                nitroManeuver: nitroManeuver,
-                traitCollection: traitCollection
+            navigationSession.updateEstimates(
+                Parser.parseTravelEstimates(
+                    travelEstimates: nitroManeuver.travelEstimates
+                ),
+                for: maneuver
             )
-            upcomingManeuvers.append(maneuver)
+
+            return maneuver
         }
 
-        if upcomingManeuvers.count > 0 {
-            if #available(iOS 17.4, *) {
-                upcomingManeuvers = upcomingManeuvers.flatMap { maneuver in
-                    if let laneImages = maneuver.laneImages {
-                        // CarPlay has a limitation of 120x18 for the symbolImage on secondaryManeuver that shows lanes only
-                        let secondarySymbolImage = Parser.imageFromLanes(
-                            laneImages: laneImages.prefix(Int(120 / 18)),
-                            traitCollection: traitCollection
-                        )
-
-                        let secondaryManeuver = CPManeuver(
-                            id: maneuver.id + "-lanes",
-                            isSecondary: true
-                        )
-                        secondaryManeuver.symbolImage = secondarySymbolImage
-                        secondaryManeuver.cardBackgroundColor =
-                            maneuver.cardBackgroundColor
-                        return [maneuver, secondaryManeuver]
-                    }
-                    else {
-                        return [maneuver]
-                    }
+        if #available(iOS 17.4, *) {
+            upcomingManeuvers = upcomingManeuvers.flatMap { maneuver in
+                guard let laneImages = maneuver.laneImages else {
+                    return [maneuver]
                 }
 
-                navigationSession.add(
-                    upcomingManeuvers.filter({ maneuver in
-                        !navigationSession.upcomingManeuvers.contains(where: {
-                            $0.id == maneuver.id
-                        })
-                    })
+                // CarPlay limits lane-only maneuver symbols to 120x18.
+                let secondarySymbolImage = Parser.imageFromLanes(
+                    laneImages: laneImages.prefix(Int(120 / 18)),
+                    traitCollection: traitCollection
                 )
+                let secondaryId = maneuver.id + "-lanes"
+                let secondaryManeuver =
+                    navigationManeuversById[secondaryId]
+                    ?? currentManeuversById[secondaryId]
+                    ?? CPManeuver(id: secondaryId, isSecondary: true)
+                secondaryManeuver.symbolImage = secondarySymbolImage
+                secondaryManeuver.cardBackgroundColor =
+                    maneuver.cardBackgroundColor
 
-                let laneGuidances = upcomingManeuvers.compactMap {
-                    $0.laneGuidance
-                }
-                if laneGuidances.isEmpty {
-                    navigationSession.currentLaneGuidance = nil
-                }
-                else {
-                    navigationSession.add(laneGuidances)
-                    navigationSession.currentLaneGuidance = laneGuidances.first
+                if navigationManeuversById[secondaryId] == nil {
+                    navigationManeuversById[secondaryId] = secondaryManeuver
+                    newlyRegisteredManeuvers.append(secondaryManeuver)
                 }
 
-                if let roadFollowingManeuverVariants = upcomingManeuvers.first?
-                    .roadFollowingManeuverVariants
-                {
-                    navigationSession.currentRoadNameVariants =
-                        roadFollowingManeuverVariants
-                }
+                return [maneuver, secondaryManeuver]
             }
 
-            navigationSession.upcomingManeuvers = upcomingManeuvers
-
-            // CarPlay only applies an estimate update if the maneuver is already active,
-            // since we set new upcomingManeuvers we need to apply the latest travelEstimates on the active maneuver here
-            if let currentManeuver = navigationSession.upcomingManeuvers.first,
-                let currentNitroManeuver = maneuvers.first
-            {
-                navigationSession.updateEstimates(
-                    Parser.parseTravelEstimates(
-                        travelEstimates: currentNitroManeuver.travelEstimates
-                    ),
-                    for: currentManeuver
-                )
+            if !newlyRegisteredManeuvers.isEmpty {
+                navigationSession.add(newlyRegisteredManeuvers)
             }
+
+            let laneGuidances = upcomingManeuvers.compactMap {
+                $0.laneGuidance
+            }
+            if laneGuidances.isEmpty {
+                navigationSession.currentLaneGuidance = nil
+            }
+            else {
+                navigationSession.add(laneGuidances)
+                navigationSession.currentLaneGuidance = laneGuidances.first
+            }
+
+            navigationSession.currentRoadNameVariants =
+                upcomingManeuvers.first?.roadFollowingManeuverVariants ?? []
+        }
+
+        navigationSession.upcomingManeuvers = upcomingManeuvers
+
+        // Estimate updates only attach after a maneuver becomes active.
+        if let currentManeuver = navigationSession.upcomingManeuvers.first,
+            let currentNitroManeuver = maneuvers.first
+        {
+            navigationSession.updateEstimates(
+                Parser.parseTravelEstimates(
+                    travelEstimates: currentNitroManeuver.travelEstimates
+                ),
+                for: currentManeuver
+            )
         }
     }
 
@@ -842,15 +900,23 @@ class MapTemplate: AutoPlayHeaderProviding,
                 return
             }
 
-            navigationSession.finishTrip()
+            navigationSession.cancelTrip()
         }
 
+        navigationManeuversById.removeAll()
         self.navigationSession = template.startNavigationSession(for: trip)
     }
 
-    func stopNavigation() {
-        navigationSession?.finishTrip()
+    func stopNavigation(reason: NavigationStopReason = .cancelled) {
+        switch reason {
+        case .arrived:
+            navigationSession?.finishTrip()
+        case .cancelled:
+            navigationSession?.cancelTrip()
+        }
+
         navigationSession = nil
+        navigationManeuversById.removeAll()
     }
 
     func setManeuverState(state: ManeuverState) {

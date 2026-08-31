@@ -21,6 +21,7 @@ class SceneStore {
     }
 
     static func removeScene(moduleName: String) {
+        renderState.removeValue(forKey: moduleName)
         store.removeValue(forKey: moduleName)
     }
 

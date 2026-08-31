@@ -15,7 +15,7 @@ public protocol HybridAutoPlaySpec_protocol: HybridObject {
   // Methods
   func addListener(eventType: EventName, callback: @escaping () -> Void) throws -> () -> Void
   func addListenerRenderState(moduleName: String, callback: @escaping (_ payload: VisibilityState) -> Void) throws -> () -> Void
-  func addListenerVoiceInput(callback: @escaping (_ coordinates: Location?, _ query: String?) -> Void) throws -> () -> Void
+  func addListenerVoiceInput(callback: @escaping (_ coordinates: Location?, _ query: String?, _ requestType: String) -> Void) throws -> () -> Void
   func setRootTemplate(templateId: String) throws -> Promise<Void>
   func pushTemplate(templateId: String) throws -> Promise<Void>
   func popTemplate(animate: Bool?) throws -> Promise<Void>

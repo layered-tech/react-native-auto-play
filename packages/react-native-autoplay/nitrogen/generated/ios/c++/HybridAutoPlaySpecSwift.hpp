@@ -122,7 +122,7 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
       auto __value = std::move(__result.value());
       return __value;
     }
-    inline std::function<void()> addListenerVoiceInput(const std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */)>& callback) override {
+    inline std::function<void()> addListenerVoiceInput(const std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */, const std::string& /* requestType */)>& callback) override {
       auto __result = _swiftPart.addListenerVoiceInput(callback);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());

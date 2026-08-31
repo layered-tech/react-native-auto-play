@@ -123,14 +123,16 @@ function convert(image?: AutoImage): NitroImage | undefined {
   // so the input allows all optional parameters which are returned as is even though
   // the return type claims to not have any optional parameters...
   // we specify some default values to not crash because of proper typing required by nitro-modules
-  const { height = 0, scale = 0, uri, width = 0, ...rest } = Image.resolveAssetSource(image.image);
+  const resolvedAsset = Image.resolveAssetSource(image.image) as
+    | (ImageResolvedAssetSource & { __packager_asset?: boolean })
+    | undefined;
 
   const assetImage: AssetImage = {
-    height,
-    scale,
-    uri,
-    width,
-    packager_asset: '__packager_asset' in rest ? Boolean(rest.__packager_asset) : false,
+    height: resolvedAsset?.height ?? 0,
+    scale: resolvedAsset?.scale ?? 0,
+    uri: resolvedAsset?.uri ?? '',
+    width: resolvedAsset?.width ?? 0,
+    packager_asset: Boolean(resolvedAsset?.__packager_asset),
     color: NitroColorUtil.convert(image.color),
   };
 

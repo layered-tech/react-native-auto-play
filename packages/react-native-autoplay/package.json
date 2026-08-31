@@ -23,7 +23,6 @@
     "ios/**/*.cpp",
     "ios/**/*.swift",
     "ios/**/*.ttf",
-    "app.plugin.js",
     "nitro.json",
     "*.podspec",
     "README.md"
@@ -35,7 +34,7 @@
     "lint-ci": "biome ci src --reporter=summary",
     "typescript": "tsc",
     "specs": "nitrogen --logLevel=\"debug\"",
-    "prepare": "yarn circular && tsc && nitrogen",
+    "prepare": "npm run circular && npm run typescript && npm run specs",
     "swift:format": "swift-format format ./ios --in-place --recursive",
     "circular": "dpdm ./src/* --circular --exit-code circular:1 --no-tree --warning=false --transform"
   },
@@ -45,23 +44,27 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Iternio-Planning-AB/react-native-auto-play.git"
+    "url": "git+https://github.com/layered-tech/react-native-auto-play.git"
   },
   "author": "Manuel Auer <g4rb4g3@gmail.com> (https://github.com/g4rb4g3)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Iternio-Planning-AB/react-native-auto-play/issues"
+    "url": "https://github.com/layered-tech/react-native-auto-play/issues"
   },
-  "homepage": "https://github.com/Iternio-Planning-AB/react-native-auto-play#readme",
+  "homepage": "https://github.com/layered-tech/react-native-auto-play#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
     "access": "public"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.14",
     "@types/jest": "^29.5.12",
     "@types/react": "~19.2.0",
     "dpdm": "^4.0.1",
     "nitrogen": "^0.35.9",
+    "react": "19.2.0",
+    "react-native": "0.83.5",
+    "react-native-nitro-modules": "^0.35.9",
     "typescript": "^5.8.3"
   },
   "peerDependencies": {

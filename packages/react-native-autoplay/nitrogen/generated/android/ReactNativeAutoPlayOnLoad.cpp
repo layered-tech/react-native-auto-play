@@ -25,7 +25,7 @@
 #include "JFunc_void_WindowInformation.hpp"
 #include "JHybridAutoPlaySpec.hpp"
 #include "JFunc_void_VisibilityState.hpp"
-#include "JFunc_void_std__optional_Location__std__optional_std__string_.hpp"
+#include "JFunc_void_std__optional_Location__std__optional_std__string__std__string.hpp"
 #include "JFunc_void_SafeAreaInsets.hpp"
 #include "JHybridClusterSpec.hpp"
 #include "JFunc_void_std__string.hpp"
@@ -180,7 +180,7 @@ void registerAllNatives() {
   margelo::nitro::swe::iternio::reactnativeautoplay::JFunc_void_WindowInformation_cxx::registerNatives();
   margelo::nitro::swe::iternio::reactnativeautoplay::JHybridAutoPlaySpec::CxxPart::registerNatives();
   margelo::nitro::swe::iternio::reactnativeautoplay::JFunc_void_VisibilityState_cxx::registerNatives();
-  margelo::nitro::swe::iternio::reactnativeautoplay::JFunc_void_std__optional_Location__std__optional_std__string__cxx::registerNatives();
+  margelo::nitro::swe::iternio::reactnativeautoplay::JFunc_void_std__optional_Location__std__optional_std__string__std__string_cxx::registerNatives();
   margelo::nitro::swe::iternio::reactnativeautoplay::JFunc_void_SafeAreaInsets_cxx::registerNatives();
   margelo::nitro::swe::iternio::reactnativeautoplay::JHybridClusterSpec::CxxPart::registerNatives();
   margelo::nitro::swe::iternio::reactnativeautoplay::JFunc_void_std__string_cxx::registerNatives();
