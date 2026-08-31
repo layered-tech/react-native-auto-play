@@ -44,8 +44,22 @@ class TemplateStore {
     }
 
     @MainActor
-    func purge() {
-        store = store.filter { !($0.value.getTemplate() is CPSearchTemplate) }
+    func removeSearchTemplates(
+        matching templates: [String: CPSearchTemplate]
+    ) -> [String] {
+        let matchingTemplateIds = templates.compactMap {
+            templateId,
+            template in
+            guard store[templateId]?.getTemplate() === template else {
+                return nil
+            }
+
+            return templateId
+        }
+
+        removeTemplates(templateIds: matchingTemplateIds)
+
+        return matchingTemplateIds
     }
 
     @MainActor

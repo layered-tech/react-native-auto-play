@@ -9,8 +9,6 @@ import androidx.car.app.model.Alert
 import androidx.car.app.model.AlertCallback
 import androidx.car.app.model.CarColor
 import androidx.car.app.model.Template
-import androidx.car.app.navigation.NavigationManager
-import androidx.car.app.navigation.NavigationManagerCallback
 import androidx.car.app.navigation.model.Destination
 import androidx.car.app.navigation.model.MessageInfo
 import androidx.car.app.navigation.model.NavigationTemplate
@@ -28,6 +26,7 @@ import com.margelo.nitro.swe.iternio.reactnativeautoplay.NitroAction
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.NitroManeuver
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.NitroMapButton
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.NitroNavigationAlert
+import com.margelo.nitro.swe.iternio.reactnativeautoplay.NavigationManagerCoordinator
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.TripConfig
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.TripPoint
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.VisibleTravelEstimate
@@ -47,22 +46,12 @@ class MapTemplate(
 
     init {
         if (initNavigationManager) {
-            val navigationManagerCallback = object : NavigationManagerCallback {
-                override fun onAutoDriveEnabled() {
-                    config.onAutoDriveEnabled?.let {
-                        it()
-                    }
-                }
-
-                override fun onStopNavigation() {
-                    navigationEnded()
-                    config.onStopNavigation()
-                }
-            }
-
             UiThreadUtil.runOnUiThread {
-                navigationManager = context.getCarService(NavigationManager::class.java)
-                navigationManager.setNavigationManagerCallback(navigationManagerCallback)
+                setRootNavigationCallbacks(
+                    context,
+                    config.onStopNavigation,
+                    config.onAutoDriveEnabled
+                )
             }
         }
     }
@@ -221,7 +210,14 @@ class MapTemplate(
     }
 
     companion object {
-        private lateinit var navigationManager: NavigationManager
+        private data class NavigationCallbacks(
+            val onStopNavigation: () -> Unit,
+            val onAutoDriveEnabled: (() -> Unit)?,
+            val carContext: CarContext? = null
+        )
+
+        private var rootNavigationCallbacks: NavigationCallbacks? = null
+        private var clusterNavigationCallbacks: NavigationCallbacks? = null
         var isNavigating = false
         var navigationInfo: NavigationTemplate.NavigationInfo? = null
         var cardBackgroundColor: CarColor = CarColor.createCustom(Color.BLACK, Color.BLACK)
@@ -242,22 +238,18 @@ class MapTemplate(
             }
         }
 
-        fun updateTripDestinations() {
-            val tripDestinations = getTripDestinations()
-            UiThreadUtil.runOnUiThread {
-                val trip = Trip.Builder().apply {
-                    tripDestinations.forEach {
-                        addDestination(it.key, it.value)
-                    }
-                }.build()
-                try {
-                    navigationManager.updateTrip(trip)
-                } catch(e: IllegalStateException) {
-                    // Sometimes we get a "java.lang.IllegalStateException: Navigation is not started" here, although the navigation
-                    // is started already (we check for isNavigating at the top). So i guess this is a race condition, that we start navigation
-                    // and the AA app is not ready yet. Unfortunately we can not ask the AA app for it's state, so we just catch the error.
+        private fun createDestinationTrip(): Trip {
+            return Trip.Builder().apply {
+                getTripDestinations().forEach {
+                    addDestination(it.key, it.value)
                 }
+            }.build()
+        }
 
+        fun updateTripDestinations() {
+            val trip = createDestinationTrip()
+            UiThreadUtil.runOnUiThread {
+                NavigationManagerCoordinator.updateTrip(trip)
             }
         }
 
@@ -270,9 +262,7 @@ class MapTemplate(
             AndroidAutoScreen.invalidateSurfaceScreens()
 
             UiThreadUtil.runOnUiThread {
-                navigationManager.navigationStarted()
-
-                updateTripDestinations()
+                NavigationManagerCoordinator.startNavigation(createDestinationTrip())
             }
 
             AndroidAutoService.instance?.startForeground()
@@ -285,17 +275,64 @@ class MapTemplate(
         }
 
         fun stopNavigation() {
-            if (!this::navigationManager.isInitialized) {
-                return
-            }
-
-            UiThreadUtil.runOnUiThread {
-                navigationManager.navigationEnded()
-            }
             navigationEnded()
         }
 
         fun navigationEnded() {
+            NavigationManagerCoordinator.navigationEnded()
+            clearNavigationPresentation()
+        }
+
+        internal fun onHostNavigationStopped() {
+            clearNavigationPresentation()
+            getNavigationCallbacks()?.onStopNavigation?.invoke()
+        }
+
+        internal fun onAutoDriveEnabled() {
+            getNavigationCallbacks()?.onAutoDriveEnabled?.invoke()
+        }
+
+        internal fun setClusterNavigationCallbacks(
+            onStopNavigation: () -> Unit,
+            onAutoDriveEnabled: (() -> Unit)?
+        ) {
+            clusterNavigationCallbacks = NavigationCallbacks(
+                onStopNavigation,
+                onAutoDriveEnabled
+            )
+        }
+
+        internal fun clearClusterNavigationCallbacks() {
+            clusterNavigationCallbacks = null
+        }
+
+        internal fun clearRootNavigationCallbacks(context: CarContext) {
+            if (rootNavigationCallbacks?.carContext === context) {
+                rootNavigationCallbacks = null
+            }
+        }
+
+        private fun setRootNavigationCallbacks(
+            context: CarContext,
+            onStopNavigation: () -> Unit,
+            onAutoDriveEnabled: (() -> Unit)?
+        ) {
+            rootNavigationCallbacks = NavigationCallbacks(
+                onStopNavigation,
+                onAutoDriveEnabled,
+                context
+            )
+        }
+
+        private fun getNavigationCallbacks(): NavigationCallbacks? {
+            return if (AndroidAutoSession.getIsConnected()) {
+                rootNavigationCallbacks ?: clusterNavigationCallbacks
+            } else {
+                clusterNavigationCallbacks
+            }
+        }
+
+        private fun clearNavigationPresentation() {
             isNavigating = false
             destinationTravelEstimates = arrayOf()
             navigationInfo = null
@@ -309,12 +346,8 @@ class MapTemplate(
                 return
             }
 
-            val context = AndroidAutoSession.getRootContext()
-                ?: throw InvalidParameterException("updateManeuvers, could not get root car context")
-
-            if (!this::navigationManager.isInitialized) {
-                throw InvalidParameterException("updateManeuvers, navigationManager not initialized, did you call startNavigation?")
-            }
+            val context = NavigationManagerCoordinator.getNavigationCarContext()
+                ?: throw InvalidParameterException("updateManeuvers, could not get a car context")
 
             val routingInfo = maneuvers.asFirstOrNull()
             val messageInfo = maneuvers.asSecondOrNull()
@@ -407,13 +440,7 @@ class MapTemplate(
                         addDestination(it.key, it.value)
                     }
                 }.build()
-                try {
-                    navigationManager.updateTrip(trip)
-                } catch(exception: IllegalStateException) {
-                    // Sometimes we get a "java.lang.IllegalStateException: Navigation is not started" here, although the navigation
-                    // is started already (we check for isNavigating at the top). So i guess this is a race condition, that we start navigation
-                    // and the AA app is not ready yet. Unfortunately we can not ask the AA app for it's state, so we just catch the error.
-                }
+                NavigationManagerCoordinator.updateTrip(trip)
             }
         }
     }

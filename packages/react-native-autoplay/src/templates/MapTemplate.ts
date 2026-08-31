@@ -19,7 +19,11 @@ import type {
 import { type NitroAction, NitroActionUtil } from '../utils/NitroAction';
 import { type NavigationAlert, NitroAlertUtil } from '../utils/NitroAlert';
 import { type NitroColor, NitroColorUtil, type ThemedColor } from '../utils/NitroColor';
-import { NitroManeuverUtil, type NitroRoutingManeuver } from '../utils/NitroManeuver';
+import {
+  type NitroManeuver,
+  NitroManeuverUtil,
+  type NitroRoutingManeuver,
+} from '../utils/NitroManeuver';
 import { NitroMapButton } from '../utils/NitroMapButton';
 import {
   type HeaderActionsIos,
@@ -188,6 +192,22 @@ function convertRoutingManeuvers(
   }, []);
 }
 
+export function convertAutoManeuver(maneuvers: AutoManeuver): NitroManeuver {
+  if (Array.isArray(maneuvers)) {
+    return convertRoutingManeuvers(maneuvers);
+  }
+
+  if (maneuvers.type === 'loading') {
+    return {
+      isLoading: true,
+      cardBackgroundColor: NitroColorUtil.convert(maneuvers.cardBackgroundColor),
+      text: maneuvers.text != null ? maneuvers.text : undefined,
+    };
+  }
+
+  return NitroManeuverUtil.convert(maneuvers);
+}
+
 export class MapTemplate extends Template<MapTemplateConfig, MapTemplateConfig['headerActions']> {
   id = 'AutoPlayRoot';
   private template = this;
@@ -349,22 +369,7 @@ export class MapTemplate extends Template<MapTemplateConfig, MapTemplateConfig['
    * @namespace iOS will update travelEstimates only when passing in maneuvers with the same id
    */
   public updateManeuvers(maneuvers: AutoManeuver) {
-    if (Array.isArray(maneuvers)) {
-      HybridMapTemplate.updateManeuvers(this.id, convertRoutingManeuvers(maneuvers));
-      return;
-    }
-
-    if (maneuvers.type === 'loading') {
-      HybridMapTemplate.updateManeuvers(this.id, {
-        isLoading: true,
-        cardBackgroundColor: NitroColorUtil.convert(maneuvers.cardBackgroundColor),
-        text: maneuvers.text != null ? maneuvers.text : undefined,
-      });
-      return;
-    }
-
-    const messageManeuver = NitroManeuverUtil.convert(maneuvers);
-    HybridMapTemplate.updateManeuvers(this.id, messageManeuver);
+    HybridMapTemplate.updateManeuvers(this.id, convertAutoManeuver(maneuvers));
   }
 
   /**

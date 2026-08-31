@@ -20,6 +20,11 @@ public protocol HybridClusterSpec_protocol: HybridObject {
   func addListenerZoom(callback: @escaping (_ clusterId: String, _ payload: ZoomEvent) -> Void) throws -> () -> Void
   func addListenerCompass(callback: @escaping (_ clusterId: String, _ payload: Bool) -> Void) throws -> () -> Void
   func addListenerSpeedLimit(callback: @escaping (_ clusterId: String, _ payload: Bool) -> Void) throws -> () -> Void
+  func setNavigationCallbacks(onStopNavigation: @escaping () -> Void, onAutoDriveEnabled: (() -> Void)?) throws -> Void
+  func startNavigation(trip: TripConfig) throws -> Void
+  func updateTravelEstimates(steps: [TripPoint]) throws -> Void
+  func updateManeuvers(maneuvers: NitroManeuver) throws -> Void
+  func stopNavigation(reason: NavigationStopReason) throws -> Void
 }
 
 public extension HybridClusterSpec_protocol {

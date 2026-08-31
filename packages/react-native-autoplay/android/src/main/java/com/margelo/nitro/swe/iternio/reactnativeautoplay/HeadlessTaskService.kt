@@ -7,6 +7,7 @@ import com.facebook.react.HeadlessJsTaskService
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.UiThreadUtil
 import com.facebook.react.jstasks.HeadlessJsTaskConfig
+import com.facebook.react.modules.core.DeviceEventManagerModule
 
 class HeadlessTaskService : HeadlessJsTaskService() {
     // we use a bound service so it will never be killed when Android Auto is active
@@ -15,6 +16,11 @@ class HeadlessTaskService : HeadlessJsTaskService() {
     }
 
     private val mBinder = LocalBinder()
+
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+    }
 
     override fun getTaskConfig(intent: Intent?): HeadlessJsTaskConfig {
         val data = intent?.extras?.let {
@@ -32,5 +38,31 @@ class HeadlessTaskService : HeadlessJsTaskService() {
             startTask(getTaskConfig(intent))
         }
         return mBinder
+    }
+
+    override fun onDestroy() {
+        if (instance === this) {
+            instance = null
+        }
+        super.onDestroy()
+    }
+
+    private fun emitAllCarSessionsDisconnected() {
+        reactContext?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)?.emit(
+            ALL_CAR_SESSIONS_DISCONNECTED_EVENT,
+            null
+        )
+    }
+
+    companion object {
+        private const val ALL_CAR_SESSIONS_DISCONNECTED_EVENT =
+            "react-native-auto-play.allCarSessionsDisconnected"
+
+        @Volatile
+        private var instance: HeadlessTaskService? = null
+
+        fun notifyAllCarSessionsDisconnected() {
+            instance?.emitAllCarSessionsDisconnected()
+        }
     }
 }

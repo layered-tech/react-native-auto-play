@@ -50,6 +50,107 @@ private final class ResultBox: @unchecked Sendable {
     }
 }
 
+/// Serializes access to the process-wide AVAudioSession and prevents a superseded
+/// voice manager from deactivating the session owned by its replacement.
+private final class VoiceAudioSessionCoordinator: @unchecked Sendable {
+    struct Lease: Sendable {
+        fileprivate let generation: UInt
+    }
+
+    private struct Configuration {
+        let category: AVAudioSession.Category
+        let mode: AVAudioSession.Mode
+        let options: AVAudioSession.CategoryOptions
+    }
+
+    static let shared = VoiceAudioSessionCoordinator()
+
+    private let queue = DispatchQueue(
+        label: "com.iternio.react-native-auto-play.voice-audio-session"
+    )
+    private var activeGenerations = Set<UInt>()
+    private var nextGeneration: UInt = 0
+    private var previousConfiguration: Configuration?
+
+    private init() {}
+
+    func activate() throws -> Lease {
+        return try queue.sync {
+            let session = AVAudioSession.sharedInstance()
+
+            if activeGenerations.isEmpty,
+                previousConfiguration != nil
+            {
+                tryRestorePreviousConfiguration()
+            }
+
+            if previousConfiguration == nil {
+                previousConfiguration = Configuration(
+                    category: session.category,
+                    mode: session.mode,
+                    options: session.categoryOptions
+                )
+            }
+
+            nextGeneration &+= 1
+            let lease = Lease(generation: nextGeneration)
+            activeGenerations.insert(lease.generation)
+
+            do {
+                try session.setCategory(
+                    .playAndRecord,
+                    mode: .measurement,
+                    options: []
+                )
+                try session.setActive(true)
+                return lease
+            }
+            catch {
+                activeGenerations.remove(lease.generation)
+                if activeGenerations.isEmpty {
+                    tryRestorePreviousConfiguration()
+                }
+                throw error
+            }
+        }
+    }
+
+    func deactivate(_ lease: Lease) {
+        queue.sync {
+            guard activeGenerations.remove(lease.generation) != nil else {
+                return
+            }
+
+            if activeGenerations.isEmpty {
+                tryRestorePreviousConfiguration()
+            }
+        }
+    }
+
+    private func tryRestorePreviousConfiguration() {
+        guard activeGenerations.isEmpty,
+            let previousConfiguration
+        else { return }
+
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setActive(
+                false,
+                options: .notifyOthersOnDeactivation
+            )
+            try session.setCategory(
+                previousConfiguration.category,
+                mode: previousConfiguration.mode,
+                options: previousConfiguration.options
+            )
+            self.previousConfiguration = nil
+        }
+        catch {
+            // Retain the configuration so the next zero-owner transition can retry.
+        }
+    }
+}
+
 /// Records 16 kHz / 16-bit mono PCM from the car mic, or transcribes via SFSpeechRecognizer.
 class VoiceInputManager {
     private var audioEngine: AVAudioEngine?
@@ -117,12 +218,10 @@ class VoiceInputManager {
         }
         guard canStart else { throw VoiceInputError.noActiveSession }
 
-        // Single session for the full flow (start sound + recording + end sound); defer deactivates once at the end.
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .measurement, options: [])
-        try session.setActive(true)
+        // Keep one generation-aware lease for start sound, capture, and end sound.
+        let audioSessionLease = try VoiceAudioSessionCoordinator.shared.activate()
         defer {
-            try? session.setActive(false, options: .notifyOthersOnDeactivation)
+            VoiceAudioSessionCoordinator.shared.deactivate(audioSessionLease)
         }
 
         let result = try await withCheckedThrowingContinuation { cont in
@@ -289,6 +388,41 @@ class VoiceInputManager {
                 box?.resume(returning: makePCMResult(from: capturedSamples))
             }
         }
+    }
+
+    private func failVoiceInput(
+        _ error: Error,
+        interfaceController: AutoPlayInterfaceController?
+    ) {
+        let failureState = stopLock.withLock {
+            () -> (
+                ResultBox,
+                SFSpeechRecognitionTask?,
+                DispatchWorkItem?
+            )? in
+            guard !isStopping, let resultBox else { return nil }
+
+            isStopping = true
+            let state = (
+                resultBox,
+                recognitionTask,
+                recognitionFinalizationWorkItem
+            )
+            self.resultBox = nil
+            samples = []
+            recognitionTask = nil
+            recognitionFinalizationWorkItem = nil
+            latestPartialTranscript = nil
+            isSTTMode = false
+            return state
+        }
+
+        guard let failureState else { return }
+
+        failureState.2?.cancel()
+        failureState.1?.cancel()
+        cleanup(interfaceController: interfaceController)
+        failureState.0.resume(throwing: error)
     }
 
     // MARK: - Private
@@ -847,13 +981,20 @@ class VoiceInputManager {
             )) ?? false
 
         guard wasPresented else {
-            stopLock.withLock {
+            let shouldFailVoiceInput = stopLock.withLock {
                 if voiceControlTemplate?.id == voiceTemplate.template.id {
                     voiceControlTemplate = nil
                 }
+                return !isStopping
             }
             try? RootModule.withTemplateStore { templateStore in
                 templateStore.removeTemplate(templateId: voiceTemplate.template.id)
+            }
+            if shouldFailVoiceInput {
+                failVoiceInput(
+                    VoiceInputError.voiceTemplatePresentationFailed,
+                    interfaceController: interfaceController
+                )
             }
             return
         }
@@ -887,4 +1028,5 @@ enum VoiceInputError: Error {
     case microphonePermissionDenied
     case converterUnavailable
     case noActiveSession
+    case voiceTemplatePresentationFailed
 }

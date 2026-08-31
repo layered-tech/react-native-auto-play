@@ -10,6 +10,8 @@ import CarPlay
 @MainActor
 class AutoPlayInterfaceController: NSObject, CPInterfaceControllerDelegate {
     let interfaceController: CPInterfaceController
+    private var previouslyLiveSearchTemplateIds = Set<String>()
+    private var previouslyLiveSearchTemplates: [String: CPSearchTemplate] = [:]
 
     init(
         interfaceController: CPInterfaceController
@@ -166,6 +168,55 @@ class AutoPlayInterfaceController: NSObject, CPInterfaceControllerDelegate {
         return true
     }
 
+    private func reconcileSearchTemplates(
+        additionalLiveTemplate: CPTemplate? = nil
+    ) {
+        var liveTemplates = interfaceController.templates
+        if let presentedTemplate = interfaceController.presentedTemplate {
+            liveTemplates.append(presentedTemplate)
+        }
+        if let additionalLiveTemplate,
+            !liveTemplates.contains(where: { $0 === additionalLiveTemplate })
+        {
+            liveTemplates.append(additionalLiveTemplate)
+        }
+
+        let liveTemplateIds = Set(liveTemplates.map(\.id))
+        for case let searchTemplate as CPSearchTemplate in liveTemplates {
+            previouslyLiveSearchTemplateIds.insert(searchTemplate.id)
+            previouslyLiveSearchTemplates[searchTemplate.id] = searchTemplate
+        }
+
+        let staleTemplateIds = previouslyLiveSearchTemplateIds.subtracting(
+            liveTemplateIds
+        )
+        guard !staleTemplateIds.isEmpty else { return }
+
+        let staleTemplates = previouslyLiveSearchTemplates.filter {
+            staleTemplateIds.contains($0.key)
+        }
+        var didAccessTemplateStore = false
+        var removedTemplateIds: [String] = []
+
+        try? RootModule.withTemplateStore { templateStore in
+            didAccessTemplateStore = true
+            removedTemplateIds = templateStore.removeSearchTemplates(
+                matching: staleTemplates
+            )
+        }
+
+        guard didAccessTemplateStore else { return }
+
+        previouslyLiveSearchTemplateIds.subtract(staleTemplateIds)
+        for staleTemplateId in staleTemplateIds {
+            previouslyLiveSearchTemplates.removeValue(forKey: staleTemplateId)
+        }
+
+        for removedTemplateId in removedTemplateIds {
+            HybridAutoPlay.removeListeners(templateId: removedTemplateId)
+        }
+    }
+
     // MARK: CPInterfaceControllerDelegate
     func templateWillAppear(
         _ aTemplate: CPTemplate,
@@ -186,13 +237,7 @@ class AutoPlayInterfaceController: NSObject, CPInterfaceControllerDelegate {
         animated: Bool
     ) {
         let templateId = aTemplate.id
-
-        if rootTemplateId == templateId {
-            // this makes sure we purge outdated CPSearchTemplate since that one can be popped on with a CarPlay native button we can not intercept
-            try? RootModule.withTemplateStore { templateStore in
-                templateStore.purge()
-            }
-        }
+        reconcileSearchTemplates(additionalLiveTemplate: aTemplate)
 
         try? RootModule.withAutoPlayTemplate(
             templateId: templateId,
@@ -246,5 +291,7 @@ class AutoPlayInterfaceController: NSObject, CPInterfaceControllerDelegate {
                 templateId: templateId
             )
         }
+
+        reconcileSearchTemplates()
     }
 }

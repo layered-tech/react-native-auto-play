@@ -61,6 +61,11 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
     std::function<void()> addListenerZoom(const std::function<void(const std::string& /* clusterId */, ZoomEvent /* payload */)>& callback) override;
     std::function<void()> addListenerCompass(const std::function<void(const std::string& /* clusterId */, bool /* payload */)>& callback) override;
     std::function<void()> addListenerSpeedLimit(const std::function<void(const std::string& /* clusterId */, bool /* payload */)>& callback) override;
+    void setNavigationCallbacks(const std::function<void()>& onStopNavigation, const std::optional<std::function<void()>>& onAutoDriveEnabled) override;
+    void startNavigation(const TripConfig& trip) override;
+    void updateTravelEstimates(const std::vector<TripPoint>& steps) override;
+    void updateManeuvers(const std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver>& maneuvers) override;
+    void stopNavigation(NavigationStopReason reason) override;
 
   private:
     jni::global_ref<JHybridClusterSpec::JavaPart> _javaPart;

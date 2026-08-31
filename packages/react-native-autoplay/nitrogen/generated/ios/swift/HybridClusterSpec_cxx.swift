@@ -253,4 +253,91 @@ open class HybridClusterSpec_cxx {
       return bridge.create_Result_std__function_void____(__exceptionPtr)
     }
   }
+
+  @inline(__always)
+  public final func setNavigationCallbacks(onStopNavigation: bridge.Func_void, onAutoDriveEnabled: bridge.std__optional_std__function_void____) -> bridge.Result_void_ {
+    do {
+      try self.__implementation.setNavigationCallbacks(onStopNavigation: { () -> () -> Void in
+        let __wrappedFunction = bridge.wrap_Func_void(onStopNavigation)
+        return { () -> Void in
+          __wrappedFunction.call()
+        }
+      }(), onAutoDriveEnabled: { () -> (() -> Void)? in
+        if bridge.has_value_std__optional_std__function_void____(onAutoDriveEnabled) {
+          let __unwrapped = bridge.get_std__optional_std__function_void____(onAutoDriveEnabled)
+          return { () -> () -> Void in
+            let __wrappedFunction = bridge.wrap_Func_void(__unwrapped)
+            return { () -> Void in
+              __wrappedFunction.call()
+            }
+          }()
+        } else {
+          return nil
+        }
+      }())
+      return bridge.create_Result_void_()
+    } catch (let __error) {
+      let __exceptionPtr = __error.toCpp()
+      return bridge.create_Result_void_(__exceptionPtr)
+    }
+  }
+
+  @inline(__always)
+  public final func startNavigation(trip: TripConfig) -> bridge.Result_void_ {
+    do {
+      try self.__implementation.startNavigation(trip: trip)
+      return bridge.create_Result_void_()
+    } catch (let __error) {
+      let __exceptionPtr = __error.toCpp()
+      return bridge.create_Result_void_(__exceptionPtr)
+    }
+  }
+
+  @inline(__always)
+  public final func updateTravelEstimates(steps: bridge.std__vector_TripPoint_) -> bridge.Result_void_ {
+    do {
+      try self.__implementation.updateTravelEstimates(steps: steps.map({ __item in __item }))
+      return bridge.create_Result_void_()
+    } catch (let __error) {
+      let __exceptionPtr = __error.toCpp()
+      return bridge.create_Result_void_(__exceptionPtr)
+    }
+  }
+
+  @inline(__always)
+  public final func updateManeuvers(maneuvers: bridge.std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_) -> bridge.Result_void_ {
+    do {
+      try self.__implementation.updateManeuvers(maneuvers: { () -> NitroManeuver in
+        let __variant = maneuvers
+        switch __variant.index() {
+          case 0:
+            let __actual = __variant.get_0()
+            return .first(__actual.map({ __item in __item }))
+          case 1:
+            let __actual = __variant.get_1()
+            return .second(__actual)
+          case 2:
+            let __actual = __variant.get_2()
+            return .third(__actual)
+          default:
+            fatalError("Variant can never have index \(__variant.index())!")
+        }
+      }())
+      return bridge.create_Result_void_()
+    } catch (let __error) {
+      let __exceptionPtr = __error.toCpp()
+      return bridge.create_Result_void_(__exceptionPtr)
+    }
+  }
+
+  @inline(__always)
+  public final func stopNavigation(reason: Int32) -> bridge.Result_void_ {
+    do {
+      try self.__implementation.stopNavigation(reason: margelo.nitro.swe.iternio.reactnativeautoplay.NavigationStopReason(rawValue: reason)!)
+      return bridge.create_Result_void_()
+    } catch (let __error) {
+      let __exceptionPtr = __error.toCpp()
+      return bridge.create_Result_void_(__exceptionPtr)
+    }
+  }
 }

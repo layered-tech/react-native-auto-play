@@ -25,6 +25,50 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct NitroColor;
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ColorScheme; }
 // Forward declaration of `ZoomEvent` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ZoomEvent; }
+// Forward declaration of `TripConfig` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct TripConfig; }
+// Forward declaration of `RouteChoice` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct RouteChoice; }
+// Forward declaration of `TripPoint` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct TripPoint; }
+// Forward declaration of `TravelEstimates` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct TravelEstimates; }
+// Forward declaration of `Distance` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct Distance; }
+// Forward declaration of `DistanceUnits` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class DistanceUnits; }
+// Forward declaration of `DurationWithTimeZone` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct DurationWithTimeZone; }
+// Forward declaration of `AutoText` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct AutoText; }
+// Forward declaration of `NitroRoutingManeuver` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct NitroRoutingManeuver; }
+// Forward declaration of `NitroMessageManeuver` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct NitroMessageManeuver; }
+// Forward declaration of `NitroLoadingManeuver` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct NitroLoadingManeuver; }
+// Forward declaration of `TurnType` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class TurnType; }
+// Forward declaration of `OffRampType` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class OffRampType; }
+// Forward declaration of `OnRampType` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class OnRampType; }
+// Forward declaration of `ForkType` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ForkType; }
+// Forward declaration of `KeepType` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class KeepType; }
+// Forward declaration of `LaneGuidance` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct LaneGuidance; }
+// Forward declaration of `PreferredImageLane` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct PreferredImageLane; }
+// Forward declaration of `ImageLane` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct ImageLane; }
+// Forward declaration of `TrafficSide` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class TrafficSide; }
+// Forward declaration of `ManeuverType` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ManeuverType; }
+// Forward declaration of `NavigationStopReason` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class NavigationStopReason; }
 
 #include <functional>
 #include "JFunc_void.hpp"
@@ -59,6 +103,53 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ZoomEve
 #include "JFunc_void_std__string_ZoomEvent.hpp"
 #include "JZoomEvent.hpp"
 #include "JFunc_void_std__string_bool.hpp"
+#include "TripConfig.hpp"
+#include "JTripConfig.hpp"
+#include "RouteChoice.hpp"
+#include "JRouteChoice.hpp"
+#include "TripPoint.hpp"
+#include "JTripPoint.hpp"
+#include "TravelEstimates.hpp"
+#include "JTravelEstimates.hpp"
+#include "Distance.hpp"
+#include "JDistance.hpp"
+#include "DistanceUnits.hpp"
+#include "JDistanceUnits.hpp"
+#include "DurationWithTimeZone.hpp"
+#include "JDurationWithTimeZone.hpp"
+#include "AutoText.hpp"
+#include "JAutoText.hpp"
+#include "NitroRoutingManeuver.hpp"
+#include "NitroMessageManeuver.hpp"
+#include "NitroLoadingManeuver.hpp"
+#include "JNitroManeuver.hpp"
+#include "JNitroRoutingManeuver.hpp"
+#include "JVariant_GlyphImage_AssetImage_RemoteImage.hpp"
+#include "TurnType.hpp"
+#include "JTurnType.hpp"
+#include "OffRampType.hpp"
+#include "JOffRampType.hpp"
+#include "OnRampType.hpp"
+#include "JOnRampType.hpp"
+#include "ForkType.hpp"
+#include "JForkType.hpp"
+#include "KeepType.hpp"
+#include "JKeepType.hpp"
+#include "LaneGuidance.hpp"
+#include "JLaneGuidance.hpp"
+#include "PreferredImageLane.hpp"
+#include "ImageLane.hpp"
+#include "JVariant_PreferredImageLane_ImageLane.hpp"
+#include "JPreferredImageLane.hpp"
+#include "JImageLane.hpp"
+#include "TrafficSide.hpp"
+#include "JTrafficSide.hpp"
+#include "ManeuverType.hpp"
+#include "JManeuverType.hpp"
+#include "JNitroMessageManeuver.hpp"
+#include "JNitroLoadingManeuver.hpp"
+#include "NavigationStopReason.hpp"
+#include "JNavigationStopReason.hpp"
 
 namespace margelo::nitro::swe::iternio::reactnativeautoplay {
 
@@ -185,6 +276,35 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
         return JNICallable<JFunc_void, void()>(std::move(__resultRef));
       }
     }();
+  }
+  void JHybridClusterSpec::setNavigationCallbacks(const std::function<void()>& onStopNavigation, const std::optional<std::function<void()>>& onAutoDriveEnabled) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void::javaobject> /* onStopNavigation */, jni::alias_ref<JFunc_void::javaobject> /* onAutoDriveEnabled */)>("setNavigationCallbacks_cxx");
+    method(_javaPart, JFunc_void_cxx::fromCpp(onStopNavigation), onAutoDriveEnabled.has_value() ? JFunc_void_cxx::fromCpp(onAutoDriveEnabled.value()) : nullptr);
+  }
+  void JHybridClusterSpec::startNavigation(const TripConfig& trip) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JTripConfig> /* trip */)>("startNavigation");
+    method(_javaPart, JTripConfig::fromCpp(trip));
+  }
+  void JHybridClusterSpec::updateTravelEstimates(const std::vector<TripPoint>& steps) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JArrayClass<JTripPoint>> /* steps */)>("updateTravelEstimates");
+    method(_javaPart, [&](auto&& __input) {
+      size_t __size = __input.size();
+      jni::local_ref<jni::JArrayClass<JTripPoint>> __array = jni::JArrayClass<JTripPoint>::newArray(__size);
+      for (size_t __i = 0; __i < __size; __i++) {
+        const auto& __element = __input[__i];
+        auto __elementJni = JTripPoint::fromCpp(__element);
+        __array->setElement(__i, *__elementJni);
+      }
+      return __array;
+    }(steps));
+  }
+  void JHybridClusterSpec::updateManeuvers(const std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver>& maneuvers) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JNitroManeuver> /* maneuvers */)>("updateManeuvers");
+    method(_javaPart, JNitroManeuver::fromCpp(maneuvers));
+  }
+  void JHybridClusterSpec::stopNavigation(NavigationStopReason reason) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JNavigationStopReason> /* reason */)>("stopNavigation");
+    method(_javaPart, JNavigationStopReason::fromCpp(reason));
   }
 
 } // namespace margelo::nitro::swe::iternio::reactnativeautoplay

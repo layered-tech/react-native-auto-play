@@ -36,7 +36,7 @@ class HybridAutoPlay : HybridAutoPlaySpec() {
     }
 
     override fun isCarServiceRunning(): Boolean {
-        return AndroidAutoService.instance != null
+        return AndroidAutoService.instance?.hasActiveSessions() == true
     }
 
     override fun addListenerRenderState(

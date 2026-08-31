@@ -27,6 +27,7 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
     private val isCluster = sessionInfo.displayType == SessionInfo.DISPLAY_TYPE_CLUSTER
     private val clusterId = if (isCluster) UUID.randomUUID().toString() else null
     private val moduleName = clusterId ?: ROOT_SESSION
+    private val navigationSessionId = UUID.randomUUID().toString()
 
     private fun getInitialTemplate(): Template {
         if (isCluster) {
@@ -82,6 +83,14 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
 
         clusterId?.let {
             clusterSessions.add(it)
+        }
+
+        if (BuildConfig.IS_NAVIGATION_APP) {
+            NavigationManagerCoordinator.registerSession(
+                navigationSessionId,
+                carContext,
+                isRootSession = clusterId == null
+            )
         }
 
         lifecycle.addObserver(sessionLifecycleObserver)
@@ -551,6 +560,12 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
         }
 
         override fun onDestroy(owner: LifecycleOwner) {
+            if (BuildConfig.IS_NAVIGATION_APP) {
+                if (clusterId == null) {
+                    MapTemplate.clearRootNavigationCallbacks(carContext)
+                }
+                NavigationManagerCoordinator.unregisterSession(navigationSessionId)
+            }
             sessions.remove(moduleName)
             VirtualRenderer.removeRenderer(moduleName)
             clusterId?.let {

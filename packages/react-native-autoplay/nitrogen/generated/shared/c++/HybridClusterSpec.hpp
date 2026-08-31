@@ -21,6 +21,18 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct NitroAttrib
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ColorScheme; }
 // Forward declaration of `ZoomEvent` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ZoomEvent; }
+// Forward declaration of `TripConfig` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct TripConfig; }
+// Forward declaration of `TripPoint` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct TripPoint; }
+// Forward declaration of `NitroRoutingManeuver` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct NitroRoutingManeuver; }
+// Forward declaration of `NitroMessageManeuver` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct NitroMessageManeuver; }
+// Forward declaration of `NitroLoadingManeuver` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct NitroLoadingManeuver; }
+// Forward declaration of `NavigationStopReason` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class NavigationStopReason; }
 
 #include <functional>
 #include "ClusterEventName.hpp"
@@ -30,6 +42,14 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ZoomEve
 #include <vector>
 #include "ColorScheme.hpp"
 #include "ZoomEvent.hpp"
+#include <optional>
+#include "TripConfig.hpp"
+#include "TripPoint.hpp"
+#include "NitroRoutingManeuver.hpp"
+#include "NitroMessageManeuver.hpp"
+#include "NitroLoadingManeuver.hpp"
+#include <variant>
+#include "NavigationStopReason.hpp"
 
 namespace margelo::nitro::swe::iternio::reactnativeautoplay {
 
@@ -69,6 +89,11 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
       virtual std::function<void()> addListenerZoom(const std::function<void(const std::string& /* clusterId */, ZoomEvent /* payload */)>& callback) = 0;
       virtual std::function<void()> addListenerCompass(const std::function<void(const std::string& /* clusterId */, bool /* payload */)>& callback) = 0;
       virtual std::function<void()> addListenerSpeedLimit(const std::function<void(const std::string& /* clusterId */, bool /* payload */)>& callback) = 0;
+      virtual void setNavigationCallbacks(const std::function<void()>& onStopNavigation, const std::optional<std::function<void()>>& onAutoDriveEnabled) = 0;
+      virtual void startNavigation(const TripConfig& trip) = 0;
+      virtual void updateTravelEstimates(const std::vector<TripPoint>& steps) = 0;
+      virtual void updateManeuvers(const std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver>& maneuvers) = 0;
+      virtual void stopNavigation(NavigationStopReason reason) = 0;
 
     protected:
       // Hybrid Setup

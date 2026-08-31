@@ -55,12 +55,12 @@ target_sources(
   ../nitrogen/generated/android/c++/JVariant_GlyphImage_AssetImage_RemoteImage.cpp
   ../nitrogen/generated/android/c++/JHybridClusterSpec.cpp
   ../nitrogen/generated/android/c++/JNitroImage.cpp
+  ../nitrogen/generated/android/c++/JNitroManeuver.cpp
+  ../nitrogen/generated/android/c++/JVariant_PreferredImageLane_ImageLane.cpp
   ../nitrogen/generated/android/c++/JHybridGridTemplateSpec.cpp
   ../nitrogen/generated/android/c++/JHybridInformationTemplateSpec.cpp
   ../nitrogen/generated/android/c++/JHybridListTemplateSpec.cpp
   ../nitrogen/generated/android/c++/JHybridMapTemplateSpec.cpp
-  ../nitrogen/generated/android/c++/JNitroManeuver.cpp
-  ../nitrogen/generated/android/c++/JVariant_PreferredImageLane_ImageLane.cpp
   ../nitrogen/generated/android/c++/JHybridMessageTemplateSpec.cpp
   ../nitrogen/generated/android/c++/JHybridSearchTemplateSpec.cpp
   ../nitrogen/generated/android/c++/JHybridSignInTemplateSpec.cpp

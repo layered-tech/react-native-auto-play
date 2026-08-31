@@ -4,7 +4,10 @@ import { NitroModules } from 'react-native-nitro-modules';
 import { SafeAreaInsetsProvider } from '../components/SafeAreaInsetsContext';
 import { WindowInformationWrapper } from '../components/WindowInformationWrapper';
 import type { Cluster as NitroCluster, ZoomEvent } from '../specs/Cluster.nitro';
+import { convertAutoManeuver, NavigationStopReason } from '../templates/MapTemplate';
+import type { AutoManeuver } from '../types/Maneuver';
 import type { ColorScheme, RootComponentInitialProps } from '../types/RootComponent';
+import type { TripConfig, TripPoint } from '../types/Trip';
 import type { AutoAttributedString } from '../utils/NitroAttributedString';
 import { NitroImageUtil } from '../utils/NitroImage';
 
@@ -13,6 +16,7 @@ const HybridCluster = NitroModules.createHybridObject<NitroCluster>('Cluster');
 class Cluster {
   private component: React.ComponentType<RootComponentInitialProps> | null = null;
   private attributedInactiveDescriptionVariants: Array<AutoAttributedString> = [];
+  private connectionStateListeners = new Set<(isConnected: boolean) => void>();
   /**
    * Holds all cluster scene/session IDs and if they have a window/surface connected
    */
@@ -26,9 +30,11 @@ class Cluster {
       }
       this.clusters[clusterId] = false;
       this.applyAttributedInactiveDescriptionVariants();
+      this.emitConnectionState();
     });
     HybridCluster.addListener('didConnectWithWindow', (clusterId) => {
       this.clusters[clusterId] = false;
+      this.emitConnectionState();
       this.registerComponent().catch((e) => {
         console.error(e);
       });
@@ -39,10 +45,20 @@ class Cluster {
         return;
       }
       this.clusters[clusterId] = false;
+      this.emitConnectionState();
     });
     HybridCluster.addListener('didDisconnect', (clusterId) => {
       delete this.clusters[clusterId];
+      this.emitConnectionState();
     });
+  }
+
+  private emitConnectionState() {
+    const isConnected = this.hasConnectedSessions();
+
+    for (const listener of this.connectionStateListeners) {
+      listener(isConnected);
+    }
   }
 
   private async registerComponent() {
@@ -100,6 +116,74 @@ class Cluster {
     }
     this.component = component;
     return this.registerComponent();
+  }
+
+  public hasConnectedSessions() {
+    return Object.keys(this.clusters).length > 0;
+  }
+
+  public addConnectionStateListener(callback: (isConnected: boolean) => void) {
+    this.connectionStateListeners.add(callback);
+    callback(this.hasConnectedSessions());
+
+    return () => {
+      this.connectionStateListeners.delete(callback);
+    };
+  }
+
+  /**
+   * Registers callbacks used by Android when a cluster session is the only
+   * active car session.
+   * @namespace Android
+   */
+  public setNavigationCallbacks({
+    onStopNavigation,
+    onAutoDriveEnabled,
+  }: {
+    onStopNavigation: () => void;
+    onAutoDriveEnabled?: () => void;
+  }) {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    HybridCluster.setNavigationCallbacks(onStopNavigation, onAutoDriveEnabled);
+  }
+
+  /** @namespace Android */
+  public startNavigation(trip: TripConfig) {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    HybridCluster.startNavigation(trip);
+  }
+
+  /** @namespace Android */
+  public updateTravelEstimates(steps: Array<TripPoint>) {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    HybridCluster.updateTravelEstimates(steps);
+  }
+
+  /** @namespace Android */
+  public updateManeuvers(maneuvers: AutoManeuver) {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    HybridCluster.updateManeuvers(convertAutoManeuver(maneuvers));
+  }
+
+  /** @namespace Android */
+  public stopNavigation(reason = NavigationStopReason.Cancelled) {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    HybridCluster.stopNavigation(reason);
   }
 
   /**
