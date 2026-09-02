@@ -684,7 +684,9 @@ class MapTemplate: AutoPlayHeaderProviding,
     func updateManeuvers(messageManeuver: NitroMessageManeuver) {
         guard let navigationSession = navigationSession else { return }
 
-        if #available(iOS 17.4, *) {
+        if #available(iOS 17.4, *),
+            !navigationSession.currentRoadNameVariants.isEmpty
+        {
             navigationSession.currentRoadNameVariants = []
         }
 
@@ -694,6 +696,18 @@ class MapTemplate: AutoPlayHeaderProviding,
 
         let color = messageManeuver.cardBackgroundColor
         let cardBackgroundColor = Parser.parseColor(color: color)
+
+        // Re-sending an identical message makes CarPlay rebuild the maneuver
+        // card and counts as a fresh route guidance update, so leave the one
+        // already on screen alone.
+        if #available(iOS 15.4, *),
+            navigationSession.upcomingManeuvers.count == 1,
+            let currentManeuver = navigationSession.upcomingManeuvers.first,
+            currentManeuver.id == messageManeuver.title,
+            currentManeuver.cardBackgroundColor == cardBackgroundColor
+        {
+            return
+        }
 
         let maneuver = CPManeuver(id: messageManeuver.title)
 
@@ -766,10 +780,16 @@ class MapTemplate: AutoPlayHeaderProviding,
         guard let navigationSession = navigationSession else { return }
 
         if maneuvers.isEmpty {
-            navigationSession.upcomingManeuvers = []
+            if !navigationSession.upcomingManeuvers.isEmpty {
+                navigationSession.upcomingManeuvers = []
+            }
             if #available(iOS 17.4, *) {
-                navigationSession.currentLaneGuidance = nil
-                navigationSession.currentRoadNameVariants = []
+                if navigationSession.currentLaneGuidance != nil {
+                    navigationSession.currentLaneGuidance = nil
+                }
+                if !navigationSession.currentRoadNameVariants.isEmpty {
+                    navigationSession.currentRoadNameVariants = []
+                }
             }
             return
         }
@@ -823,48 +843,71 @@ class MapTemplate: AutoPlayHeaderProviding,
                     return [maneuver]
                 }
 
+                let secondaryId = maneuver.id + "-lanes"
+
+                if let secondaryManeuver =
+                    navigationManeuversById[secondaryId]
+                    ?? currentManeuversById[secondaryId]
+                {
+                    return [maneuver, secondaryManeuver]
+                }
+
                 // CarPlay limits lane-only maneuver symbols to 120x18.
-                let secondarySymbolImage = Parser.imageFromLanes(
+                let secondaryManeuver = CPManeuver(
+                    id: secondaryId,
+                    isSecondary: true
+                )
+                secondaryManeuver.symbolImage = Parser.imageFromLanes(
                     laneImages: laneImages.prefix(Int(120 / 18)),
                     traitCollection: traitCollection
                 )
-                let secondaryId = maneuver.id + "-lanes"
-                let secondaryManeuver =
-                    navigationManeuversById[secondaryId]
-                    ?? currentManeuversById[secondaryId]
-                    ?? CPManeuver(id: secondaryId, isSecondary: true)
-                secondaryManeuver.symbolImage = secondarySymbolImage
                 secondaryManeuver.cardBackgroundColor =
                     maneuver.cardBackgroundColor
-
-                if navigationManeuversById[secondaryId] == nil {
-                    navigationManeuversById[secondaryId] = secondaryManeuver
-                    newlyRegisteredManeuvers.append(secondaryManeuver)
-                }
+                navigationManeuversById[secondaryId] = secondaryManeuver
+                newlyRegisteredManeuvers.append(secondaryManeuver)
 
                 return [maneuver, secondaryManeuver]
             }
 
             if !newlyRegisteredManeuvers.isEmpty {
                 navigationSession.add(newlyRegisteredManeuvers)
+
+                let newLaneGuidances = newlyRegisteredManeuvers.compactMap {
+                    $0.laneGuidance
+                }
+                if !newLaneGuidances.isEmpty {
+                    navigationSession.add(newLaneGuidances)
+                }
             }
 
-            let laneGuidances = upcomingManeuvers.compactMap {
+            // Every assignment below is pushed to the head unit as a route
+            // guidance update, so only touch the session state that changed.
+            let currentLaneGuidance = upcomingManeuvers.compactMap {
                 $0.laneGuidance
-            }
-            if laneGuidances.isEmpty {
-                navigationSession.currentLaneGuidance = nil
-            }
-            else {
-                navigationSession.add(laneGuidances)
-                navigationSession.currentLaneGuidance = laneGuidances.first
+            }.first
+            if navigationSession.currentLaneGuidance !== currentLaneGuidance {
+                navigationSession.currentLaneGuidance = currentLaneGuidance
             }
 
-            navigationSession.currentRoadNameVariants =
+            let currentRoadNameVariants =
                 upcomingManeuvers.first?.roadFollowingManeuverVariants ?? []
+            if navigationSession.currentRoadNameVariants
+                != currentRoadNameVariants
+            {
+                navigationSession.currentRoadNameVariants =
+                    currentRoadNameVariants
+            }
         }
 
-        navigationSession.upcomingManeuvers = upcomingManeuvers
+        // The same maneuvers in the same order means only their estimates
+        // moved. Re-assigning upcomingManeuvers anyway makes CarPlay rebuild
+        // the maneuver card, re-animate it on the Dashboard and log a new
+        // route guidance update on every location tick.
+        if navigationSession.upcomingManeuvers.map({ $0.id })
+            != upcomingManeuvers.map({ $0.id })
+        {
+            navigationSession.upcomingManeuvers = upcomingManeuvers
+        }
 
         // Estimate updates only attach after a maneuver becomes active.
         if let currentManeuver = navigationSession.upcomingManeuvers.first,
