@@ -37,6 +37,8 @@ class MapTemplate: AutoPlayHeaderProviding,
     var currentTripId: String?
     var currentRouteId: String?
     var navigationManeuversById: [String: CPManeuver] = [:]
+    private var sentManeuverTravelEstimateKeysById: [String: String] = [:]
+    private var sentTripTravelEstimateKey: String?
 
     var tripSelectorVisible = false
     /**
@@ -612,6 +614,62 @@ class MapTemplate: AutoPlayHeaderProviding,
         hideTripSelector()
     }
 
+    // MARK: travel estimates
+    /// Key of what CarPlay renders for these estimates: miles and kilometers to
+    /// one decimal, other distances whole, time to the minute.
+    private func travelEstimatesDisplayKey(
+        _ travelEstimates: CPTravelEstimates
+    ) -> String {
+        let distance = travelEstimates.distanceRemaining
+        let usesFractionDigit =
+            distance.unit == UnitLength.miles
+            || distance.unit == UnitLength.kilometers
+        let scale: Double = usesFractionDigit ? 10 : 1
+        let roundedDistance = (distance.value * scale).rounded() / scale
+        let minutes = (travelEstimates.timeRemaining / 60).rounded()
+
+        return "\(distance.unit.symbol):\(roundedDistance):\(minutes)"
+    }
+
+    /// CarPlay redraws the maneuver card for every estimate update it receives
+    /// (the Dashboard animates it), and raw GPS jitter changes the underlying
+    /// numbers on every tick even while parked. Only re-send estimates once the
+    /// rendered value would actually change.
+    private func updateEstimatesIfChanged(
+        _ travelEstimates: CPTravelEstimates,
+        for maneuver: CPManeuver,
+        in navigationSession: CPNavigationSession,
+        force: Bool = false
+    ) {
+        let key = travelEstimatesDisplayKey(travelEstimates)
+
+        if !force, sentManeuverTravelEstimateKeysById[maneuver.id] == key {
+            return
+        }
+
+        sentManeuverTravelEstimateKeysById[maneuver.id] = key
+        navigationSession.updateEstimates(travelEstimates, for: maneuver)
+    }
+
+    private func updateTripEstimatesIfChanged(
+        _ travelEstimates: CPTravelEstimates,
+        for trip: CPTrip
+    ) {
+        let key = travelEstimatesDisplayKey(travelEstimates)
+
+        if sentTripTravelEstimateKey == key {
+            return
+        }
+
+        sentTripTravelEstimateKey = key
+        template.updateEstimates(travelEstimates, for: trip)
+    }
+
+    private func resetSentTravelEstimates() {
+        sentManeuverTravelEstimateKeysById.removeAll()
+        sentTripTravelEstimateKey = nil
+    }
+
     func updateVisibleTravelEstimate(
         visibleTravelEstimate: VisibleTravelEstimate?
     ) {
@@ -626,7 +684,7 @@ class MapTemplate: AutoPlayHeaderProviding,
         if let estimates = self.visibleTravelEstimate == .first
             ? travelEstimates?.first : travelEstimates?.last
         {
-            template.updateEstimates(estimates, for: trip)
+            updateTripEstimatesIfChanged(estimates, for: trip)
         }
 
     }
@@ -747,11 +805,12 @@ class MapTemplate: AutoPlayHeaderProviding,
             if let maneuver = navigationManeuversById[nitroManeuver.id],
                 !maneuver.isSecondary
             {
-                navigationSession.updateEstimates(
+                updateEstimatesIfChanged(
                     Parser.parseTravelEstimates(
                         travelEstimates: nitroManeuver.travelEstimates
                     ),
-                    for: maneuver
+                    for: maneuver,
+                    in: navigationSession
                 )
                 continue
             }
@@ -827,11 +886,12 @@ class MapTemplate: AutoPlayHeaderProviding,
                 newlyRegisteredManeuvers.append(maneuver)
             }
 
-            navigationSession.updateEstimates(
+            updateEstimatesIfChanged(
                 Parser.parseTravelEstimates(
                     travelEstimates: nitroManeuver.travelEstimates
                 ),
-                for: maneuver
+                for: maneuver,
+                in: navigationSession
             )
 
             return maneuver
@@ -903,21 +963,27 @@ class MapTemplate: AutoPlayHeaderProviding,
         // moved. Re-assigning upcomingManeuvers anyway makes CarPlay rebuild
         // the maneuver card, re-animate it on the Dashboard and log a new
         // route guidance update on every location tick.
-        if navigationSession.upcomingManeuvers.map({ $0.id })
+        let upcomingManeuversChanged =
+            navigationSession.upcomingManeuvers.map({ $0.id })
             != upcomingManeuvers.map({ $0.id })
-        {
+
+        if upcomingManeuversChanged {
             navigationSession.upcomingManeuvers = upcomingManeuvers
         }
 
-        // Estimate updates only attach after a maneuver becomes active.
-        if let currentManeuver = navigationSession.upcomingManeuvers.first,
+        // Estimate updates only attach after a maneuver becomes active, so the
+        // freshly activated maneuver gets its estimates again unconditionally.
+        if upcomingManeuversChanged,
+            let currentManeuver = navigationSession.upcomingManeuvers.first,
             let currentNitroManeuver = maneuvers.first
         {
-            navigationSession.updateEstimates(
+            updateEstimatesIfChanged(
                 Parser.parseTravelEstimates(
                     travelEstimates: currentNitroManeuver.travelEstimates
                 ),
-                for: currentManeuver
+                for: currentManeuver,
+                in: navigationSession,
+                force: true
             )
         }
     }
@@ -947,6 +1013,7 @@ class MapTemplate: AutoPlayHeaderProviding,
         }
 
         navigationManeuversById.removeAll()
+        resetSentTravelEstimates()
         self.navigationSession = template.startNavigationSession(for: trip)
     }
 
@@ -960,6 +1027,7 @@ class MapTemplate: AutoPlayHeaderProviding,
 
         navigationSession = nil
         navigationManeuversById.removeAll()
+        resetSentTravelEstimates()
     }
 
     func setManeuverState(state: ManeuverState) {
