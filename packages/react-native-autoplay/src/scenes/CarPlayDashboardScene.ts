@@ -66,7 +66,9 @@ class Dashboard {
     }
 
     if (isConnected) {
-      HybridCarPlayDashboard.initRootView();
+      HybridCarPlayDashboard.initRootView().catch((error) => {
+        console.warn('CarPlayDashboard.initRootView failed', error);
+      });
     }
   }
 
@@ -87,12 +89,12 @@ class Dashboard {
    * otherwise the dashboard will not show up!
    * @namespace iOS
    */
-  public setButtons(buttons: Array<CarPlayDashboardButton>) {
+  public setButtons(buttons: Array<CarPlayDashboardButton>): Promise<void> {
     if (HybridCarPlayDashboard == null) {
       console.warn(`CarPlayDashboard.setButtons is not supported on ${Platform.OS}`);
-      return;
+      return Promise.resolve();
     }
-    HybridCarPlayDashboard.setButtons(
+    return HybridCarPlayDashboard.setButtons(
       buttons.map((button) => ({ ...button, image: NitroImageUtil.convert(button.image) }))
     );
   }
