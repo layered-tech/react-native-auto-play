@@ -172,9 +172,15 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
                     browsable: nil,
                     enabled: false,
                     image: nil,
+                    imageType: nil,
                     checked: nil,
                     onPress: nil,
-                    selected: nil
+                    selected: nil,
+                    coordinate: nil,
+                    distance: nil,
+                    duration: nil,
+                    travelEstimatesVisible: nil,
+                    address: nil
                 )
             ],
             type: .default
