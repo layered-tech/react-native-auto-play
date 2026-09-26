@@ -537,9 +537,11 @@ class VoiceInputManager {
             throw VoiceInputError.converterUnavailable
         }
 
-        recordingStart = Date()
-        silenceStart = nil
-        firstBufferContinuation = nil
+        stopLock.withLock {
+            recordingStart = Date()
+            silenceStart = nil
+            firstBufferContinuation = nil
+        }
 
         inputNode.installTap(
             onBus: 0,
@@ -609,18 +611,22 @@ class VoiceInputManager {
                 now.timeIntervalSince(start) * 1000 >= VoiceInputManager.warmupMs
             {
                 let peak = newSamples.reduce(0) { max($0, abs(Int($1))) }
-                if peak < VoiceInputManager.silenceAmplitudeThreshold {
-                    if self.silenceStart == nil {
-                        self.silenceStart = now
+                // `silenceStart` is also cleared from cleanup() on another
+                // thread, so the read-modify-write has to hold stopLock.
+                let silenceElapsedMs = self.stopLock.withLock { () -> Double? in
+                    guard peak < VoiceInputManager.silenceAmplitudeThreshold else {
+                        self.silenceStart = nil
+                        return nil
                     }
-                    if let silenceBegin = self.silenceStart,
-                        now.timeIntervalSince(silenceBegin) * 1000 >= silenceThresholdMs
-                    {
-                        self.triggerAutoStop(interfaceController: interfaceController)
-                    }
+
+                    let silenceBegin = self.silenceStart ?? now
+                    self.silenceStart = silenceBegin
+
+                    return now.timeIntervalSince(silenceBegin) * 1000
                 }
-                else {
-                    self.silenceStart = nil
+
+                if let silenceElapsedMs, silenceElapsedMs >= silenceThresholdMs {
+                    self.triggerAutoStop(interfaceController: interfaceController)
                 }
             }
         }
@@ -820,8 +826,6 @@ class VoiceInputManager {
         audioEngine?.stop()
         audioEngine = nil
         recognitionRequest = nil
-        recordingStart = nil
-        silenceStart = nil
         // Drain firstBufferContinuation so the template Task doesn't hang if stop() fired before the first buffer.
         let cleanupState = stopLock.withLock {
             () -> (
@@ -831,6 +835,8 @@ class VoiceInputManager {
                 DispatchWorkItem?,
                 DispatchWorkItem?
             ) in
+            recordingStart = nil
+            silenceStart = nil
             let pendingContinuation = firstBufferContinuation
             firstBufferContinuation = nil
             let interfaceController =

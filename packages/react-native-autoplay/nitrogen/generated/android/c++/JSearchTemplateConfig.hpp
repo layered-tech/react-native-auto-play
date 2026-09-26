@@ -14,15 +14,18 @@
 #include "AutoText.hpp"
 #include "Distance.hpp"
 #include "DistanceUnits.hpp"
+#include "DurationWithTimeZone.hpp"
 #include "GlyphImage.hpp"
 #include "JAssetImage.hpp"
 #include "JAutoText.hpp"
 #include "JDistance.hpp"
 #include "JDistanceUnits.hpp"
+#include "JDurationWithTimeZone.hpp"
 #include "JFunc_void.hpp"
 #include "JFunc_void_std__optional_bool_.hpp"
 #include "JFunc_void_std__string.hpp"
 #include "JGlyphImage.hpp"
+#include "JListImageType.hpp"
 #include "JNitroAction.hpp"
 #include "JNitroActionType.hpp"
 #include "JNitroAlignment.hpp"
@@ -33,6 +36,8 @@
 #include "JNitroSectionType.hpp"
 #include "JRemoteImage.hpp"
 #include "JVariant_GlyphImage_AssetImage_RemoteImage.hpp"
+#include "JWaypointCoordinate.hpp"
+#include "ListImageType.hpp"
 #include "NitroAction.hpp"
 #include "NitroActionType.hpp"
 #include "NitroAlignment.hpp"
@@ -42,6 +47,7 @@
 #include "NitroSection.hpp"
 #include "NitroSectionType.hpp"
 #include "RemoteImage.hpp"
+#include "WaypointCoordinate.hpp"
 #include <NitroModules/JNICallable.hpp>
 #include <functional>
 #include <optional>
@@ -54,7 +60,7 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ struct "SearchTemplateConfig" and the the Kotlin data class "SearchTemplateConfig".
+   * The C++ JNI bridge between the C++ struct "SearchTemplateConfig" and the Kotlin data class "SearchTemplateConfig".
    */
   struct JSearchTemplateConfig final: public jni::JavaClass<JSearchTemplateConfig> {
   public:

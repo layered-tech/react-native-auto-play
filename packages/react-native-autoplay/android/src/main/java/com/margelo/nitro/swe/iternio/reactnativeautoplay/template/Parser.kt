@@ -37,6 +37,7 @@ import androidx.car.app.navigation.model.TravelEstimate
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.net.toUri
 import com.facebook.datasource.DataSources
 import com.facebook.drawee.backends.pipeline.Fresco
 import com.facebook.imagepipeline.image.CloseableBitmap
@@ -52,6 +53,7 @@ import com.margelo.nitro.swe.iternio.reactnativeautoplay.DurationWithTimeZone
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.ForkType
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.GlyphImage
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.KeepType
+import com.margelo.nitro.swe.iternio.reactnativeautoplay.ListImageType
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.ListTemplateConfig
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.ManeuverType
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.NitroAction
@@ -80,9 +82,12 @@ import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.get
 import java.util.Calendar
 import java.util.TimeZone
 import kotlin.math.abs
-import androidx.core.net.toUri
 
 object Parser {
+    // IMAGE_TYPE_MEDIUM was added to androidx.car.app in 1.8.0. Keep the protocol value here
+    // while this library continues to depend on 1.7.0.
+    private const val ROW_IMAGE_TYPE_MEDIUM = 16
+
     const val TAG = "Parser"
 
     fun parseHeader(
@@ -176,7 +181,11 @@ object Parser {
         }.build()
     }
 
-    fun parseAction(context: CarContext, action: NitroAction, useParkedOnlyClickListener: Boolean = false): Action {
+    fun parseAction(
+        context: CarContext,
+        action: NitroAction,
+        useParkedOnlyClickListener: Boolean = false
+    ): Action {
         if (action.type == NitroActionType.APPICON) {
             return Action.APP_ICON
         }
@@ -213,11 +222,21 @@ object Parser {
     }
 
     fun parseImage(context: CarContext, image: Variant_GlyphImage_AssetImage_RemoteImage): CarIcon {
-        return parseImage(context, image.asFirstOrNull(), image.asSecondOrNull(), image.asThirdOrNull())
+        return parseImage(
+            context,
+            image.asFirstOrNull(),
+            image.asSecondOrNull(),
+            image.asThirdOrNull()
+        )
     }
 
     fun parseImage(context: CarContext, image: NitroImage): CarIcon {
-        return parseImage(context, image.asFirstOrNull(), image.asSecondOrNull(), image.asThirdOrNull())
+        return parseImage(
+            context,
+            image.asFirstOrNull(),
+            image.asSecondOrNull(),
+            image.asThirdOrNull()
+        )
     }
 
     fun parseImage(
@@ -228,8 +247,19 @@ object Parser {
     ): CarIcon {
         val bitmap = parseImageToBitmap(context, glyphImage, assetImage, remoteImage)
 
+        // the tint recolors every opaque pixel, so it would also fill the background drawn in SymbolFont
+        val hasGlyphBackground =
+            glyphImage != null && (glyphImage.backgroundColor.get(context) ushr 24) != 0
+
+        val applyDefaultTint = !hasGlyphBackground && (glyphImage?.color?.isDefault
+            ?: assetImage?.color?.isDefault ?: remoteImage?.color?.isDefault ?: false)
+
         bitmap?.let {
-            return CarIcon.Builder(IconCompat.createWithBitmap(it)).build()
+            return CarIcon.Builder(IconCompat.createWithBitmap(it)).apply {
+                if (applyDefaultTint) {
+                    setTint(CarColor.DEFAULT)
+                }
+            }.build()
         }
 
         // remote images might fail to load so we provide some placeholder then
@@ -347,7 +377,7 @@ object Parser {
                     }
                     row.onPress?.let {
                         setOnClickListener {
-                            row.onPress(null)
+                            it(null)
                         }
                     }
                     row.browsable?.let {
@@ -396,7 +426,13 @@ object Parser {
                         addText(parseText(detailedText))
                     }
                     row.image?.let { image ->
-                        setImage(parseImage(context, image))
+                        val parsedImage = parseImage(context, image)
+                        val imageType = row.imageType
+                        if (imageType == null) {
+                            setImage(parsedImage)
+                        } else {
+                            setImage(parsedImage, imageType.toRowImageType())
+                        }
                     }
                     row.browsable?.let { browsable ->
                         setBrowsable(browsable)
@@ -423,6 +459,14 @@ object Parser {
                 }.build())
             }
         }.build()
+    }
+
+    private fun ListImageType.toRowImageType(): Int = when (this) {
+        ListImageType.LARGE -> Row.IMAGE_TYPE_LARGE
+        ListImageType.MEDIUM -> ROW_IMAGE_TYPE_MEDIUM
+        ListImageType.SMALL -> Row.IMAGE_TYPE_SMALL
+        ListImageType.EXTRA_SMALL -> Row.IMAGE_TYPE_EXTRA_SMALL
+        ListImageType.ICON -> Row.IMAGE_TYPE_ICON
     }
 
     fun formatToTimestamp(context: CarContext, time: DurationWithTimeZone): String {
@@ -593,10 +637,14 @@ object Parser {
     private fun fetchSync(context: CarContext, imageRequest: ImageRequest): Bitmap? {
         val dataSource = try {
             Fresco.getImagePipeline().fetchDecodedImage(imageRequest, context)
-        } catch (_: Exception) { return null }
+        } catch (_: Exception) {
+            return null
+        }
         val result = try {
             DataSources.waitForFinalResult(dataSource)
-        } catch (_: Exception) { dataSource.close(); return null }
+        } catch (_: Exception) {
+            dataSource.close(); return null
+        }
         val image = result?.get()
         try {
             if (image is CloseableBitmap) {
@@ -607,7 +655,11 @@ object Parser {
                 return image.underlyingBitmap?.copy(Bitmap.Config.ARGB_8888, false)
             } else if (image is CloseableXml) {
                 val drawable = image.buildDrawable()
-                return drawable?.toBitmap(width = image.width, height = image.height, Bitmap.Config.ARGB_8888)
+                return drawable?.toBitmap(
+                    width = image.width,
+                    height = image.height,
+                    Bitmap.Config.ARGB_8888
+                )
             }
         } catch (_: Exception) {
             // Any decode/copy failure (OOM, recycled bitmap, invalid config, …) should
@@ -742,10 +794,12 @@ object Parser {
                 }
                 nitroManeuver.angle?.let { roundaboutExitAngle ->
                     if (nitroManeuver.trafficSide == TrafficSide.LEFT) {
-                        val angle = ((180 + roundaboutExitAngle) % 360).toInt().let { if (it == 0) 360 else it }
+                        val angle = ((180 + roundaboutExitAngle) % 360).toInt()
+                            .let { if (it == 0) 360 else it }
                         setRoundaboutExitAngle(angle)
                     } else {
-                        val angle = ((180 - roundaboutExitAngle) % 360).toInt().let { if (it == 0) 360 else it }
+                        val angle = ((180 - roundaboutExitAngle) % 360).toInt()
+                            .let { if (it == 0) 360 else it }
                         setRoundaboutExitAngle(angle)
                     }
                 }
@@ -824,7 +878,7 @@ object Parser {
             mapConfig.mapButtons?.let { mapButtons ->
                 setMapController(
                     MapController.Builder().apply {
-                        setMapActionStrip(Parser.parseMapActions(context, mapButtons)).build()
+                        setMapActionStrip(parseMapActions(context, mapButtons)).build()
                         setPanModeListener { isInPanMode ->
                             mapConfig.onDidChangePanningInterface?.let {
                                 it(isInPanMode)
@@ -834,7 +888,7 @@ object Parser {
                 )
             }
             mapConfig.headerActions?.let { headerActions ->
-                setActionStrip(Parser.parseMapHeaderActions(context, headerActions))
+                setActionStrip(parseMapHeaderActions(context, headerActions))
             }
         }.build()
     }

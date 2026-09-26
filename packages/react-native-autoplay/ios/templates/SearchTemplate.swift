@@ -218,7 +218,7 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
                     self.config.onSearchTextSubmitted(self.searchText)
 
                     let _ = try await interfaceController.pushTemplate(
-                        listTemplate.template,
+                        try listTemplate.getTemplate(),
                         animated: true
                     )
                 }

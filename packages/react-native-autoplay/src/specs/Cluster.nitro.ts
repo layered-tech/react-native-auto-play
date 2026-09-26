@@ -1,7 +1,7 @@
 import type { HybridObject } from 'react-native-nitro-modules';
+import type { NavigationStopReason } from '../templates/MapTemplate';
 import type { CleanupCallback } from '../types/Event';
 import type { ColorScheme } from '../types/RootComponent';
-import type { NavigationStopReason } from '../templates/MapTemplate';
 import type { TripConfig, TripPoint } from '../types/Trip';
 import type { NitroAttributedString } from '../utils/NitroAttributedString';
 import type { NitroManeuver } from '../utils/NitroManeuver';

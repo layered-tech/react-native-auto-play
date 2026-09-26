@@ -24,8 +24,13 @@ const getButtons = (
     title: { text: '#2' },
     image: {
       name: 'star',
-      color: { darkColor, lightColor },
-      backgroundColor: selectedIdx === 1 ? 'rgba(0, 255, 255, 1)' : undefined,
+      backgroundColor:
+        selectedIdx === 1
+          ? {
+              darkColor: 'rgba(0, 127, 127, 0.5)',
+              lightColor: 'rgba(0, 255, 255, 0.5)',
+            }
+          : undefined,
       type: 'glyph',
       fontScale: 0.8,
     },
@@ -37,8 +42,6 @@ const getButtons = (
     title: { text: '#3' },
     image: {
       name: 'star',
-      color: { darkColor, lightColor },
-      backgroundColor: selectedIdx === 2 ? 'rgba(0, 255, 255, 1)' : undefined,
       type: 'glyph',
       fontScale: 0.7,
     },
@@ -87,6 +90,7 @@ const getButtons = (
 const getTemplate = (props?: { mapConfig?: GridTemplateConfig['mapConfig'] }): GridTemplate => {
   return new GridTemplate({
     title: { text: 'grid' },
+    imageSize: 'medium',
     mapConfig: props?.mapConfig,
     headerActions: AutoTemplate.headerActions,
     buttons: getButtons('green', 'red', 0),

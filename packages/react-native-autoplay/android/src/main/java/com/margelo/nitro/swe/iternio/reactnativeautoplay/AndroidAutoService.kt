@@ -4,14 +4,10 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.ComponentName
-import android.content.Intent
-import android.content.ServiceConnection
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
-import android.os.IBinder
 import android.util.Log
 import androidx.car.app.CarAppService
 import androidx.car.app.Session
@@ -24,6 +20,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.MapTemplate
+import com.facebook.react.ReactApplication
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.AppInfo
 import java.util.Collections
 import java.util.IdentityHashMap
@@ -35,7 +32,6 @@ class AndroidAutoService : CarAppService() {
     private val sessionLock = Any()
     private val activeSessionOwners =
         Collections.newSetFromMap(IdentityHashMap<LifecycleOwner, Boolean>())
-    private var headlessServiceBindingAccepted = false
     private var hasNotificationContent = false
     private var lastNotificationTitle: String? = null
     private var lastNotificationText: String? = null
@@ -54,6 +50,8 @@ class AndroidAutoService : CarAppService() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+
+        (application as? ReactApplication)?.reactHost?.start()
 
         notificationManager = getSystemService(NotificationManager::class.java)
         carNotificationManager = CarNotificationManager.from(this)
@@ -86,7 +84,6 @@ class AndroidAutoService : CarAppService() {
         if (hadActiveSessions) {
             finishCarRuntime()
         } else {
-            releaseHeadlessServiceBinding()
             stopForeground(STOP_FOREGROUND_REMOVE)
         }
 
@@ -105,21 +102,7 @@ class AndroidAutoService : CarAppService() {
             }
 
             this@AndroidAutoService.startForeground()
-            val serviceIntent = Intent(applicationContext, HeadlessTaskService::class.java)
-            val bindingAccepted = try {
-                bindService(serviceIntent, connection, BIND_AUTO_CREATE)
-            } catch (error: SecurityException) {
-                Log.e(TAG, "failed to bind the Android Auto headless task service", error)
-                false
-            }
 
-            synchronized(sessionLock) {
-                headlessServiceBindingAccepted = bindingAccepted
-            }
-
-            if (!bindingAccepted) {
-                Log.e(TAG, "Android rejected the Android Auto headless task service binding")
-            }
         }
 
         override fun onDestroy(owner: LifecycleOwner) {
@@ -133,37 +116,9 @@ class AndroidAutoService : CarAppService() {
         }
     }
 
-    private val connection: ServiceConnection = object : ServiceConnection {
-        override fun onServiceConnected(
-            className: ComponentName, service: IBinder
-        ) = Unit
-
-        override fun onServiceDisconnected(className: ComponentName) = Unit
-    }
-
     private fun finishCarRuntime() {
         MapTemplate.navigationEnded()
-        HeadlessTaskService.notifyAllCarSessionsDisconnected()
-        releaseHeadlessServiceBinding()
         stopForeground(STOP_FOREGROUND_REMOVE)
-    }
-
-    private fun releaseHeadlessServiceBinding() {
-        val shouldUnbind = synchronized(sessionLock) {
-            val bindingAccepted = headlessServiceBindingAccepted
-            headlessServiceBindingAccepted = false
-            bindingAccepted
-        }
-
-        if (!shouldUnbind) {
-            return
-        }
-
-        try {
-            unbindService(connection)
-        } catch (error: IllegalArgumentException) {
-            Log.w(TAG, "Android Auto headless task service was already unbound", error)
-        }
     }
 
     fun hasActiveSessions(): Boolean {

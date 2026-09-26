@@ -173,7 +173,7 @@ class MapTemplate(
                         }
 
                         AlertCallback.REASON_NOT_SUPPORTED -> {
-                            // we make sure that this can be called on navigation templates already so this should never happen
+                            alertConfig.onDidDismiss?.let { it(AlertDismissalReason.SYSTEM) }
                         }
                     }
                 }
@@ -194,12 +194,18 @@ class MapTemplate(
         }.build()
 
         if (!alertIds.contains(alert.id)) {
-            alertConfig.onWillShow?.let { it() }
             alertIds.add(alert.id)
             alertPriority = alertConfig.priority.toInt()
         }
 
-        context.getCarService(AppManager::class.java).showAlert(alert)
+        try {
+            context.getCarService(AppManager::class.java).showAlert(alert)
+            alertConfig.onWillShow?.let { it() }
+        } catch (error: Exception) {
+            alertIds.remove(alert.id)
+            if (alertIds.isEmpty()) alertPriority = 0
+            alertConfig.onDidDismiss?.let { it(AlertDismissalReason.SYSTEM) }
+        }
     }
 
     fun updateVisibleTravelEstimate(

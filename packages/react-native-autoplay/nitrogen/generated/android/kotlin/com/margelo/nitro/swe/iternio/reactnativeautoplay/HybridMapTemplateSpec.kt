@@ -10,6 +10,7 @@ package com.margelo.nitro.swe.iternio.reactnativeautoplay
 import androidx.annotation.Keep
 import com.facebook.jni.HybridData
 import com.facebook.proguard.annotations.DoNotStrip
+import dalvik.annotation.optimization.FastNative
 import com.margelo.nitro.core.Promise
 import com.margelo.nitro.core.HybridObject
 
@@ -26,7 +27,7 @@ import com.margelo.nitro.core.HybridObject
 )
 abstract class HybridMapTemplateSpec: HybridObject() {
   // Properties
-
+  
 
   // Methods
   @DoNotStrip
@@ -77,10 +78,10 @@ abstract class HybridMapTemplateSpec: HybridObject() {
   @DoNotStrip
   @Keep
   abstract fun registerManeuvers(templateId: String, maneuvers: Array<NitroRoutingManeuver>): Unit
-
+  
   @DoNotStrip
   @Keep
-  abstract fun startNavigation(templateId: String, trip: TripConfig): Unit
+  abstract fun startNavigation(templateId: String, trip: TripConfig): Promise<Unit>
   
   @DoNotStrip
   @Keep
@@ -89,6 +90,10 @@ abstract class HybridMapTemplateSpec: HybridObject() {
   @DoNotStrip
   @Keep
   abstract fun setManeuverState(templateId: String, state: ManeuverState): Unit
+  
+  @DoNotStrip
+  @Keep
+  abstract fun updateOptionsPanel(templateId: String, config: NitroOptionsPanelConfig?): Promise<Unit>
 
   // Default implementation of `HybridObject.toString()`
   override fun toString(): String {
@@ -100,6 +105,7 @@ abstract class HybridMapTemplateSpec: HybridObject() {
   @Keep
   protected open class CxxPart(javaPart: HybridMapTemplateSpec): HybridObject.CxxPart(javaPart) {
     // C++ JHybridMapTemplateSpec::CxxPart::initHybrid(...)
+    @FastNative
     external override fun initHybrid(): HybridData
   }
   override fun createCxxPart(): CxxPart {

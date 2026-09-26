@@ -15,7 +15,7 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
   using namespace facebook;
 
   /**
-   * The C++ JNI bridge between the C++ enum "NavigationStopReason" and the the Kotlin enum "NavigationStopReason".
+   * The C++ JNI bridge between the C++ enum "NavigationStopReason" and the Kotlin enum "NavigationStopReason".
    */
   struct JNavigationStopReason final: public jni::JavaClass<JNavigationStopReason> {
   public:

@@ -10,7 +10,6 @@ package com.margelo.nitro.swe.iternio.reactnativeautoplay
 import androidx.annotation.Keep
 import com.facebook.jni.HybridData
 import com.facebook.proguard.annotations.DoNotStrip
-import dalvik.annotation.optimization.FastNative
 
 
 /**
@@ -59,7 +58,6 @@ class Func_void_std__optional_Location__std__optional_std__string__std__string_c
   override fun invoke(coordinates: Location?, query: String?, requestType: String): Unit
     = invoke_cxx(coordinates,query,requestType)
 
-  @FastNative
   private external fun invoke_cxx(coordinates: Location?, query: String?, requestType: String): Unit
 }
 

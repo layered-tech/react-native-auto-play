@@ -10,6 +10,7 @@ package com.margelo.nitro.swe.iternio.reactnativeautoplay
 import androidx.annotation.Keep
 import com.facebook.jni.HybridData
 import com.facebook.proguard.annotations.DoNotStrip
+import dalvik.annotation.optimization.FastNative
 import com.margelo.nitro.core.Promise
 import com.margelo.nitro.core.HybridObject
 
@@ -81,28 +82,28 @@ abstract class HybridClusterSpec: HybridObject() {
     val __result = addListenerSpeedLimit(callback)
     return Func_void_java(__result)
   }
-
+  
   abstract fun setNavigationCallbacks(onStopNavigation: () -> Unit, onAutoDriveEnabled: (() -> Unit)?): Unit
-
+  
   @DoNotStrip
   @Keep
   private fun setNavigationCallbacks_cxx(onStopNavigation: Func_void, onAutoDriveEnabled: Func_void?): Unit {
     val __result = setNavigationCallbacks(onStopNavigation, onAutoDriveEnabled?.let { it })
     return __result
   }
-
+  
   @DoNotStrip
   @Keep
   abstract fun startNavigation(trip: TripConfig): Unit
-
+  
   @DoNotStrip
   @Keep
   abstract fun updateTravelEstimates(steps: Array<TripPoint>): Unit
-
+  
   @DoNotStrip
   @Keep
   abstract fun updateManeuvers(maneuvers: NitroManeuver): Unit
-
+  
   @DoNotStrip
   @Keep
   abstract fun stopNavigation(reason: NavigationStopReason): Unit
@@ -117,6 +118,7 @@ abstract class HybridClusterSpec: HybridObject() {
   @Keep
   protected open class CxxPart(javaPart: HybridClusterSpec): HybridObject.CxxPart(javaPart) {
     // C++ JHybridClusterSpec::CxxPart::initHybrid(...)
+    @FastNative
     external override fun initHybrid(): HybridData
   }
   override fun createCxxPart(): CxxPart {

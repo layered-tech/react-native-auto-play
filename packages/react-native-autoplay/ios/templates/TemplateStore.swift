@@ -7,16 +7,26 @@
 import CarPlay
 
 class TemplateStore {
+    /// Guards `store`. Templates are added from the JS thread (the
+    /// `createXTemplate` hybrid methods are synchronous and never hop actors)
+    /// while the CarPlay delegate callbacks remove/purge them on the main thread
+    private let lock = NSLock()
     private var store: [String: AutoPlayTemplate] = [:]
+
+    private func withLock<T>(_ body: () -> T) -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return body()
+    }
 
     @MainActor
     func getCPTemplate(templateId key: String) -> CPTemplate? {
-        return store[key]?.getTemplate()
+        return try? withLock { store[key] }?.getTemplate()
     }
 
     @MainActor
     func getTemplate(templateId: String) throws -> AutoPlayTemplate {
-        if let template = store[templateId] {
+        if let template = withLock({ store[templateId] }) {
             return template
         }
         throw AutoPlayError.templateNotFound(templateId)
@@ -24,23 +34,23 @@ class TemplateStore {
 
     @MainActor
     func addTemplate(template: AutoPlayTemplate, templateId: String) {
-        store[templateId] = template
+        withLock { store[templateId] = template }
     }
 
     @MainActor
     func removeTemplate(templateId: String) {
-        store[templateId]?.onPopped()
+        let removed = withLock { store.removeValue(forKey: templateId) }
 
-        store.removeValue(forKey: templateId)
+        removed?.onPopped()
     }
 
     @MainActor
     func removeTemplates(templateIds: [String]) {
-        for templateId in templateIds {
-            store[templateId]?.onPopped()
+        let removed = withLock {
+            templateIds.compactMap { store.removeValue(forKey: $0) }
         }
 
-        store = store.filter { !templateIds.contains($0.key) }
+        removed.forEach { template in template.onPopped() }
     }
 
     @MainActor
@@ -50,7 +60,7 @@ class TemplateStore {
         var matchingTemplateIds: [String] = []
 
         for (templateId, template) in templates {
-            if store[templateId]?.getTemplate() === template {
+            if (try? withLock { store[templateId] }?.getTemplate()) === template {
                 matchingTemplateIds.append(templateId)
             }
         }
@@ -62,13 +72,21 @@ class TemplateStore {
 
     @MainActor
     func traitCollectionDidChange() {
-        for template in store.values {
-            template.traitCollectionDidChange()
-        }
+        let templates = withLock { Array(store.values) }
+
+        templates.forEach { template in template.traitCollectionDidChange() }
     }
 
     @MainActor
     func disconnect() {
-        store = [:]
+        /// notify every visible template about it being gone
+        let removed = withLock {
+            let templates = Array(store.values)
+            store = [:]
+
+            return templates
+        }
+
+        removed.forEach { template in template.onPopped() }
     }
 }

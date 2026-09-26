@@ -65,9 +65,10 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
     void updateTravelEstimates(const std::string& templateId, const std::vector<TripPoint>& steps) override;
     void updateManeuvers(const std::string& templateId, const std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver>& maneuvers) override;
     void registerManeuvers(const std::string& templateId, const std::vector<NitroRoutingManeuver>& maneuvers) override;
-    void startNavigation(const std::string& templateId, const TripConfig& trip) override;
+    std::shared_ptr<Promise<void>> startNavigation(const std::string& templateId, const TripConfig& trip) override;
     void stopNavigation(const std::string& templateId, NavigationStopReason reason) override;
     void setManeuverState(const std::string& templateId, ManeuverState state) override;
+    std::shared_ptr<Promise<void>> updateOptionsPanel(const std::string& templateId, const std::optional<NitroOptionsPanelConfig>& config) override;
 
   private:
     jni::global_ref<JHybridMapTemplateSpec::JavaPart> _javaPart;

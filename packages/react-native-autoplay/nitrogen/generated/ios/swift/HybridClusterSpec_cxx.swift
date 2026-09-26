@@ -253,7 +253,7 @@ open class HybridClusterSpec_cxx {
       return bridge.create_Result_std__function_void____(__exceptionPtr)
     }
   }
-
+  
   @inline(__always)
   public final func setNavigationCallbacks(onStopNavigation: bridge.Func_void, onAutoDriveEnabled: bridge.std__optional_std__function_void____) -> bridge.Result_void_ {
     do {
@@ -281,7 +281,7 @@ open class HybridClusterSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-
+  
   @inline(__always)
   public final func startNavigation(trip: TripConfig) -> bridge.Result_void_ {
     do {
@@ -292,7 +292,7 @@ open class HybridClusterSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-
+  
   @inline(__always)
   public final func updateTravelEstimates(steps: bridge.std__vector_TripPoint_) -> bridge.Result_void_ {
     do {
@@ -303,7 +303,7 @@ open class HybridClusterSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-
+  
   @inline(__always)
   public final func updateManeuvers(maneuvers: bridge.std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_) -> bridge.Result_void_ {
     do {
@@ -329,7 +329,7 @@ open class HybridClusterSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-
+  
   @inline(__always)
   public final func stopNavigation(reason: Int32) -> bridge.Result_void_ {
     do {
