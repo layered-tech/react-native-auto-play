@@ -10,8 +10,6 @@ import CarPlay
 @MainActor
 class AutoPlayInterfaceController: NSObject, CPInterfaceControllerDelegate {
     let interfaceController: CPInterfaceController
-    private var previouslyLiveSearchTemplateIds = Set<String>()
-    private var previouslyLiveSearchTemplates: [String: CPSearchTemplate] = [:]
 
     /// `CPMapTemplate` exposes no way to inspect its panel stack (only push/pop operations),
     /// so this mirrors the combined logical navigation stack of regular pushed templates and
@@ -328,55 +326,6 @@ class AutoPlayInterfaceController: NSObject, CPInterfaceControllerDelegate {
         return true
     }
 
-    private func reconcileSearchTemplates(
-        additionalLiveTemplate: CPTemplate? = nil
-    ) {
-        var liveTemplates = interfaceController.templates
-        if let presentedTemplate = interfaceController.presentedTemplate {
-            liveTemplates.append(presentedTemplate)
-        }
-        if let additionalLiveTemplate,
-            !liveTemplates.contains(where: { $0 === additionalLiveTemplate })
-        {
-            liveTemplates.append(additionalLiveTemplate)
-        }
-
-        let liveTemplateIds = Set(liveTemplates.map(\.id))
-        for case let searchTemplate as CPSearchTemplate in liveTemplates {
-            previouslyLiveSearchTemplateIds.insert(searchTemplate.id)
-            previouslyLiveSearchTemplates[searchTemplate.id] = searchTemplate
-        }
-
-        let staleTemplateIds = previouslyLiveSearchTemplateIds.subtracting(
-            liveTemplateIds
-        )
-        guard !staleTemplateIds.isEmpty else { return }
-
-        let staleTemplates = previouslyLiveSearchTemplates.filter {
-            staleTemplateIds.contains($0.key)
-        }
-        var didAccessTemplateStore = false
-        var removedTemplateIds: [String] = []
-
-        try? RootModule.withTemplateStore { templateStore in
-            didAccessTemplateStore = true
-            removedTemplateIds = templateStore.removeSearchTemplates(
-                matching: staleTemplates
-            )
-        }
-
-        guard didAccessTemplateStore else { return }
-
-        previouslyLiveSearchTemplateIds.subtract(staleTemplateIds)
-        for staleTemplateId in staleTemplateIds {
-            previouslyLiveSearchTemplates.removeValue(forKey: staleTemplateId)
-        }
-
-        for removedTemplateId in removedTemplateIds {
-            HybridAutoPlay.removeListeners(templateId: removedTemplateId)
-        }
-    }
-
     // MARK: CPInterfaceControllerDelegate
     func templateWillAppear(
         _ aTemplate: CPTemplate,
@@ -412,7 +361,6 @@ class AutoPlayInterfaceController: NSObject, CPInterfaceControllerDelegate {
         animated: Bool
     ) {
         let templateId = aTemplate.id
-        reconcileSearchTemplates(additionalLiveTemplate: aTemplate)
 
         try? RootModule.withAutoPlayTemplate(
             templateId: templateId,
@@ -480,7 +428,6 @@ class AutoPlayInterfaceController: NSObject, CPInterfaceControllerDelegate {
             return
         }
 
-        reconcileSearchTemplates()
         removeNavigationEntryIfPresent(templateId: templateId)
 
         try? RootModule.withTemplateStore { templateStore in

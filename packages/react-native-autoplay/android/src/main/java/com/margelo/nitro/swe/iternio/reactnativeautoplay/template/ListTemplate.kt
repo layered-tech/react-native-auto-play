@@ -77,7 +77,10 @@ class ListTemplate(context: CarContext, config: ListTemplateConfig) :
 
     fun updateSections(sections: Array<NitroSection>?) {
         config = config.copy(sections = sections)
-        super.applyConfigUpdate(immediate = true)
+        super.applyConfigUpdate()
     }
 
+    companion object {
+
+    }
 }

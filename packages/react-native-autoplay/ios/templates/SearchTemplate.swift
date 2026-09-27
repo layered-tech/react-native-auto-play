@@ -37,15 +37,6 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
         invalidate()
     }
 
-    private func completePendingSearchResults(_ items: [CPListItem] = []) {
-        guard let completionHandler else {
-            return
-        }
-
-        self.completionHandler = nil
-        completionHandler(items)
-    }
-
     @MainActor
     override func _invalidate() {
         // if we have pushed a list template update it
@@ -54,7 +45,7 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
         }
 
         // otherwise update the search results on the search template
-        guard self.completionHandler != nil else {
+        guard let completionHandler = self.completionHandler else {
             return
         }
 
@@ -66,7 +57,9 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
             section: results,
             traitCollection: traitCollection
         )
-        completePendingSearchResults(listItems)
+        completionHandler(listItems)
+
+        self.completionHandler = nil
     }
 
     override func onWillAppear(animated: Bool) {
@@ -80,7 +73,6 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
     }
 
     override func onWillDisappear(animated: Bool) {
-        completePendingSearchResults()
         config.onWillDisappear?(animated)
         template.delegate = nil
     }
@@ -90,7 +82,6 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
     }
 
     override func onPopped() {
-        completePendingSearchResults()
         config.onPopped?()
     }
 
@@ -101,38 +92,20 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
         updatedSearchText searchText: String,
         completionHandler: @escaping ([CPListItem]) -> Void
     ) {
+        self.completionHandler = completionHandler
+
         if !isInitialized {
-            self.searchText = searchText
-            completePendingSearchResults()
-            self.completionHandler = completionHandler
             // this makes sure we show the initial items when opening up the template
             invalidate()
             isInitialized = true
             return
         }
 
-        self.searchText = searchText
+        if searchText == self.searchText {
+            return
+        }
 
-        // CarPlay requires every text-update completion handler to be resolved.
-        // Keep the current rows until keyboard Search publishes the next set.
-        if let traitCollection = SceneStore.getRootTraitCollection() {
-            completionHandler(
-                Parser.parseSearchResults(
-                    section: results,
-                    traitCollection: traitCollection
-                )
-            )
-        }
-        else {
-            completionHandler(
-                results.items.map { row in
-                    CPListItem(
-                        text: row.title.text,
-                        detailText: row.detailedText?.text
-                    )
-                }
-            )
-        }
+        self.searchText = searchText
 
         if pushedListTemplate != nil {
             return
@@ -153,41 +126,7 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
         _ searchTemplate: CPSearchTemplate
     ) {
 
-        completePendingSearchResults()
-
-        let submittedSearchLoadingResults = NitroSection(
-            title: nil,
-            items: [
-                NitroRow(
-                    title: AutoText(
-                        text: "Searching...",
-                        distance: nil,
-                        duration: nil
-                    ),
-                    detailedText: AutoText(
-                        text: "Looking for places near the car.",
-                        distance: nil,
-                        duration: nil
-                    ),
-                    browsable: nil,
-                    enabled: false,
-                    image: nil,
-                    imageType: nil,
-                    checked: nil,
-                    onPress: nil,
-                    selected: nil,
-                    coordinate: nil,
-                    distance: nil,
-                    duration: nil,
-                    travelEstimatesVisible: nil,
-                    address: nil
-                )
-            ],
-            type: .default
-        )
-        self.results = submittedSearchLoadingResults
-
-        // Create a stable ListTemplate that owns loading and completed results.
+        // Create a new ListTemplate with the search results
         let listConfig = ListTemplateConfig(
             id: "\(config.id)-results",
             onWillAppear: nil,
@@ -198,12 +137,15 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
             autoDismissMs: nil,
             headerActions: config.headerActions,
             title: config.title,
-            sections: [submittedSearchLoadingResults],
+            sections: [results],
             mapConfig: nil
         )
 
         let listTemplate = ListTemplate(config: listConfig)
         self.pushedListTemplate = listTemplate
+
+        // execute callback after creating the template to avoid race condition in updateSearchResults
+        config.onSearchTextSubmitted(searchText)
 
         // Push the template
         Task { @MainActor in
@@ -219,10 +161,6 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
 
                     listTemplate.invalidate()
 
-                    // Start JS work only after its update target is retained
-                    // and registered, so fast responses cannot be dropped.
-                    self.config.onSearchTextSubmitted(self.searchText)
-
                     let _ = try await interfaceController.pushTemplate(
                         try listTemplate.getTemplate(),
                         animated: true
@@ -230,21 +168,6 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
                 }
             }
             catch {
-                if self.pushedListTemplate === listTemplate {
-                    self.pushedListTemplate = nil
-                }
-
-                try? RootModule.withTemplateStore { templateStore in
-                    guard
-                        let storedTemplate = try? templateStore.getTemplate(
-                            templateId: listConfig.id
-                        ),
-                        storedTemplate === listTemplate
-                    else { return }
-
-                    templateStore.removeTemplate(templateId: listConfig.id)
-                }
-
                 print("Failed to push list template: \(error)")
             }
         }

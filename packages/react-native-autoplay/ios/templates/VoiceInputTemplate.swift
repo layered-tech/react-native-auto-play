@@ -18,20 +18,16 @@ class VoiceInputTemplate: AutoPlayTemplate {
 
         super.init()
 
-        try? RootModule.performOnMainActor {
-            try RootModule.withTemplateStore { templateStore in
-                templateStore.addTemplate(template: self, templateId: id)
-            }
+        try? RootModule.withTemplateStore { templateStore in
+            templateStore.addTemplate(template: self, templateId: id)
         }
     }
 
     override func onDidDisappear(animated: Bool) {
         onDidDisappearCallback()
 
-        try? RootModule.performOnMainActor {
-            try RootModule.withTemplateStore { templateStore in
-                templateStore.removeTemplate(templateId: self.template.id)
-            }
+        try? RootModule.withTemplateStore { templateStore in
+            templateStore.removeTemplate(templateId: self.template.id)
         }
     }
 }

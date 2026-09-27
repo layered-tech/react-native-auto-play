@@ -33,11 +33,10 @@ class AutoPlayScene: UIResponder {
     }
 
     func connect(props: [String: Any]) {
-        SceneStore.addScene(moduleName: moduleName, scene: self)
         isConnected = true
 
-        initialProperties = initialProperties.merging(props) { _, incoming in
-            incoming
+        initialProperties = initialProperties.merging(props) { current, _ in
+            current
         }
 
         // Get trait collection from the CarPlay interface controller
@@ -53,7 +52,6 @@ class AutoPlayScene: UIResponder {
         }
     }
 
-    @MainActor
     func disconnect() {
         NitroSurface.stop(self.window?.rootViewController?.view)
         self.window = nil
@@ -93,7 +91,6 @@ class AutoPlayScene: UIResponder {
         window.makeKeyAndVisible()
     }
 
-    @MainActor
     open func traitCollectionDidChange(traitCollection: UITraitCollection) {
         if self.traitCollection.userInterfaceStyle
             == traitCollection.userInterfaceStyle

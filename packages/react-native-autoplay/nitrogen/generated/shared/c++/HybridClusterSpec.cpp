@@ -21,11 +21,6 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
       prototype.registerHybridMethod("addListenerZoom", &HybridClusterSpec::addListenerZoom);
       prototype.registerHybridMethod("addListenerCompass", &HybridClusterSpec::addListenerCompass);
       prototype.registerHybridMethod("addListenerSpeedLimit", &HybridClusterSpec::addListenerSpeedLimit);
-      prototype.registerHybridMethod("setNavigationCallbacks", &HybridClusterSpec::setNavigationCallbacks);
-      prototype.registerHybridMethod("startNavigation", &HybridClusterSpec::startNavigation);
-      prototype.registerHybridMethod("updateTravelEstimates", &HybridClusterSpec::updateTravelEstimates);
-      prototype.registerHybridMethod("updateManeuvers", &HybridClusterSpec::updateManeuvers);
-      prototype.registerHybridMethod("stopNavigation", &HybridClusterSpec::stopNavigation);
     });
   }
 

@@ -9,15 +9,13 @@ import NitroModules
 
 class HybridGridTemplate: HybridGridTemplateSpec {
     func createGridTemplate(config: GridTemplateConfig) throws {
-        try RootModule.performOnMainActor {
-            let template = GridTemplate(config: config)
+        let template = GridTemplate(config: config)
 
-            try RootModule.withTemplateStore { templateStore in
-                templateStore.addTemplate(
-                    template: template,
-                    templateId: config.id
-                )
-            }
+        try RootModule.withTemplateStore { templateStore in
+            templateStore.addTemplate(
+                template: template,
+                templateId: config.id
+            )
         }
     }
 

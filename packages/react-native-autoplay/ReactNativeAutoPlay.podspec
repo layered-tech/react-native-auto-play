@@ -11,8 +11,7 @@ Pod::Spec.new do |s|
   s.authors      = package["author"]
 
   s.platforms    = { :ios => min_ios_version_supported, :visionos => 1.0 }
-  s.source       = { :git => "https://github.com/layered-tech/react-native-auto-play.git", :tag => "v#{s.version}" }
-  s.static_framework = true
+  s.source       = { :git => "https://github.com/Iternio-Planning-AB/react-native-auto-play.git", :tag => "#{s.version}" }
 
   s.source_files = [
     # Implementation (Swift)
@@ -36,6 +35,5 @@ Pod::Spec.new do |s|
 
   s.dependency 'React-jsi'
   s.dependency 'React-callinvoker'
-  s.dependency 'React-Core/RCTLinkingHeaders'
   install_modules_dependencies(s)
 end

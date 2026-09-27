@@ -924,6 +924,22 @@ class Parser {
     }
 
     static func parseRouteChoice(routeChoice: RouteChoice) -> CPRouteChoice {
+        let travelEstimate = parseText(
+            text: AutoText(
+                text:
+                    "\(Parser.PLACEHOLDER_DURATION) (\(Parser.PLACEHOLDER_DISTANCE))",
+                distance: routeChoice.steps.last!.travelEstimates
+                    .distanceRemaining,
+                duration: routeChoice.steps.last!.travelEstimates.timeRemaining
+                    .seconds
+            )
+        )!
+
+        let selectionSummaryVariants =
+            routeChoice.selectionSummaryVariants.map { text in
+                text + "\n " + travelEstimate
+            }
+
         let additionalInformationVariants = routeChoice
             .additionalInformationVariants.flatMap { summary in
                 routeChoice.selectionSummaryVariants.map { selection in
@@ -934,7 +950,7 @@ class Parser {
         let route = CPRouteChoice(
             summaryVariants: routeChoice.summaryVariants,
             additionalInformationVariants: additionalInformationVariants,
-            selectionSummaryVariants: routeChoice.selectionSummaryVariants,
+            selectionSummaryVariants: selectionSummaryVariants,
             id: routeChoice.id,
             // we don't want to keep the origin travel estimate
             travelEstimates: routeChoice.steps[1...].map { step in

@@ -50,111 +50,9 @@ private final class ResultBox: @unchecked Sendable {
     }
 }
 
-/// Serializes access to the process-wide AVAudioSession and prevents a superseded
-/// voice manager from deactivating the session owned by its replacement.
-private final class VoiceAudioSessionCoordinator: @unchecked Sendable {
-    struct Lease: Sendable {
-        fileprivate let generation: UInt
-    }
-
-    private struct Configuration {
-        let category: AVAudioSession.Category
-        let mode: AVAudioSession.Mode
-        let options: AVAudioSession.CategoryOptions
-    }
-
-    static let shared = VoiceAudioSessionCoordinator()
-
-    private let queue = DispatchQueue(
-        label: "com.iternio.react-native-auto-play.voice-audio-session"
-    )
-    private var activeGenerations = Set<UInt>()
-    private var nextGeneration: UInt = 0
-    private var previousConfiguration: Configuration?
-
-    private init() {}
-
-    func activate() throws -> Lease {
-        return try queue.sync {
-            let session = AVAudioSession.sharedInstance()
-
-            if activeGenerations.isEmpty,
-                previousConfiguration != nil
-            {
-                tryRestorePreviousConfiguration()
-            }
-
-            if previousConfiguration == nil {
-                previousConfiguration = Configuration(
-                    category: session.category,
-                    mode: session.mode,
-                    options: session.categoryOptions
-                )
-            }
-
-            nextGeneration &+= 1
-            let lease = Lease(generation: nextGeneration)
-            activeGenerations.insert(lease.generation)
-
-            do {
-                try session.setCategory(
-                    .playAndRecord,
-                    mode: .measurement,
-                    options: []
-                )
-                try session.setActive(true)
-                return lease
-            }
-            catch {
-                activeGenerations.remove(lease.generation)
-                if activeGenerations.isEmpty {
-                    tryRestorePreviousConfiguration()
-                }
-                throw error
-            }
-        }
-    }
-
-    func deactivate(_ lease: Lease) {
-        queue.sync {
-            guard activeGenerations.remove(lease.generation) != nil else {
-                return
-            }
-
-            if activeGenerations.isEmpty {
-                tryRestorePreviousConfiguration()
-            }
-        }
-    }
-
-    private func tryRestorePreviousConfiguration() {
-        guard activeGenerations.isEmpty,
-            let previousConfiguration
-        else { return }
-
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setActive(
-                false,
-                options: .notifyOthersOnDeactivation
-            )
-            try session.setCategory(
-                previousConfiguration.category,
-                mode: previousConfiguration.mode,
-                options: previousConfiguration.options
-            )
-            self.previousConfiguration = nil
-        }
-        catch {
-            // Retain the configuration so the next zero-owner transition can retry.
-        }
-    }
-}
-
 /// Records 16 kHz / 16-bit mono PCM from the car mic, or transcribes via SFSpeechRecognizer.
 class VoiceInputManager {
     private var audioEngine: AVAudioEngine?
-    private var activeInterfaceController: AutoPlayInterfaceController?
     private var voiceControlTemplate: CPVoiceControlTemplate?
     private var resultBox: ResultBox?
     private var samples: [Int16] = []
@@ -164,15 +62,9 @@ class VoiceInputManager {
 
     // STT
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
-    private var recognitionTask: SFSpeechRecognitionTask?
-    private var recognitionActivityGeneration: UInt = 0
-    private var recognitionFinalizationWorkItem: DispatchWorkItem?
-    private var recognitionInactivityWorkItem: DispatchWorkItem?
-    private var latestPartialTranscript: String?
     private var isSTTMode = false
 
     // Timing
-    private var captureTimeoutWorkItem: DispatchWorkItem?
     private var recordingStart: Date?
     private var silenceStart: Date?
     private var firstBufferContinuation: CheckedContinuation<Void, Never>?
@@ -184,7 +76,6 @@ class VoiceInputManager {
     private static let tapBufferSize: AVAudioFrameCount = 4_096
     private static let silenceAmplitudeThreshold = 500
     private static let warmupMs: Double = 500
-    private static let recognitionFinalizationTimeout: TimeInterval = 7
 
     private static let targetFormat = AVAudioFormat(
         commonFormat: .pcmFormatInt16,
@@ -210,36 +101,23 @@ class VoiceInputManager {
         encoding: VoiceAudioEncoding
     ) async throws -> VoiceInputResult {
         self.encoding = encoding
-        let canStart = stopLock.withLock {
-            guard !isStopping else { return false }
+        stopLock.withLock {
             cancelledByUser = false
-            activeInterfaceController = interfaceController
-            return true
         }
-        guard canStart else { throw VoiceInputError.noActiveSession }
-
-        // Keep one generation-aware lease for start sound, capture, and end sound.
-        let audioSessionLease = try VoiceAudioSessionCoordinator.shared.activate()
+        // Single session for the full flow (start sound + recording + end sound); defer deactivates once at the end.
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playAndRecord, mode: .measurement, options: [])
+        try session.setActive(true)
         defer {
-            VoiceAudioSessionCoordinator.shared.deactivate(audioSessionLease)
+            try? session.setActive(false, options: .notifyOthersOnDeactivation)
         }
 
         let result = try await withCheckedThrowingContinuation { cont in
             let box = ResultBox(cont)
-            let canBeginCapture = self.stopLock.withLock {
-                guard !self.isStopping else { return false }
-                self.resultBox = box
-                self.samples = []
-                self.isSTTMode = false
-                self.latestPartialTranscript = nil
-                self.recognitionActivityGeneration = 0
-                return true
-            }
-
-            guard canBeginCapture else {
-                box.resume(throwing: VoiceInputError.noActiveSession)
-                return
-            }
+            self.resultBox = box
+            self.samples = []
+            self.isStopping = false
+            self.isSTTMode = preferSpeechToText
 
             do {
                 try self.startCapture(
@@ -248,24 +126,11 @@ class VoiceInputManager {
                     maxDurationMs: maxDurationMs,
                     preferSpeechToText: preferSpeechToText,
                     onChunk: onChunk,
+                    box: box,
                     language: language
                 )
             }
             catch {
-                let recognitionState = self.stopLock.withLock {
-                    () -> (SFSpeechRecognitionTask?, DispatchWorkItem?) in
-                    self.resultBox = nil
-                    self.isStopping = true
-                    let recognitionTask = self.recognitionTask
-                    let finalizationWorkItem =
-                        self.recognitionFinalizationWorkItem
-                    self.recognitionTask = nil
-                    self.recognitionFinalizationWorkItem = nil
-                    self.latestPartialTranscript = nil
-                    return (recognitionTask, finalizationWorkItem)
-                }
-                recognitionState.1?.cancel()
-                recognitionState.0?.cancel()
                 self.cleanup(interfaceController: interfaceController)
                 box.resume(throwing: error)
                 return
@@ -278,14 +143,7 @@ class VoiceInputManager {
             if let interfaceController = interfaceController {
                 Task {
                     await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-                        let shouldWaitForBuffer = self.stopLock.withLock {
-                            guard !self.isStopping else { return false }
-                            self.firstBufferContinuation = cont
-                            return true
-                        }
-                        if !shouldWaitForBuffer {
-                            cont.resume()
-                        }
+                        self.stopLock.withLock { self.firstBufferContinuation = cont }
                     }
                     // Skip if stop() fired before the first buffer — cleanup already dismissed.
                     guard !self.stopLock.withLock({ self.isStopping }) else { return }
@@ -333,24 +191,7 @@ class VoiceInputManager {
     }
 
     func stop(interfaceController: AutoPlayInterfaceController? = nil) {
-        stop(
-            interfaceController: interfaceController,
-            expectedRecognitionActivityGeneration: nil
-        )
-    }
-
-    private func stop(
-        interfaceController: AutoPlayInterfaceController?,
-        expectedRecognitionActivityGeneration: UInt?
-    ) {
         stopLock.lock()
-        if let expectedRecognitionActivityGeneration,
-            expectedRecognitionActivityGeneration != recognitionActivityGeneration
-        {
-            stopLock.unlock()
-            return
-        }
-
         guard !isStopping else {
             stopLock.unlock()
             return
@@ -359,25 +200,15 @@ class VoiceInputManager {
         let wasCancelled = cancelledByUser
         let wasSTTMode = isSTTMode
         let capturedRequest = recognitionRequest
-        let captureWorkItem = captureTimeoutWorkItem
-        captureTimeoutWorkItem = nil
-        let inactivityWorkItem = recognitionInactivityWorkItem
-        recognitionInactivityWorkItem = nil
-        let box = wasSTTMode ? nil : resultBox
-        let capturedSamples = wasSTTMode ? [] : samples
-        if !wasSTTMode {
-            resultBox = nil
-            samples = []
-        }
+        let box = resultBox
+        let capturedSamples = samples
+        resultBox = nil
+        samples = []
         stopLock.unlock()
-        captureWorkItem?.cancel()
-        inactivityWorkItem?.cancel()
 
         if wasSTTMode {
+            // endAudio() triggers the final recognition result, which resumes the box and tears down the engine.
             capturedRequest?.endAudio()
-            scheduleRecognitionFinalization(
-                interfaceController: interfaceController
-            )
         }
         else {
             cleanup(interfaceController: interfaceController)
@@ -390,41 +221,6 @@ class VoiceInputManager {
         }
     }
 
-    private func failVoiceInput(
-        _ error: Error,
-        interfaceController: AutoPlayInterfaceController?
-    ) {
-        let failureState = stopLock.withLock {
-            () -> (
-                ResultBox,
-                SFSpeechRecognitionTask?,
-                DispatchWorkItem?
-            )? in
-            guard !isStopping, let resultBox else { return nil }
-
-            isStopping = true
-            let state = (
-                resultBox,
-                recognitionTask,
-                recognitionFinalizationWorkItem
-            )
-            self.resultBox = nil
-            samples = []
-            recognitionTask = nil
-            recognitionFinalizationWorkItem = nil
-            latestPartialTranscript = nil
-            isSTTMode = false
-            return state
-        }
-
-        guard let failureState else { return }
-
-        failureState.2?.cancel()
-        failureState.1?.cancel()
-        cleanup(interfaceController: interfaceController)
-        failureState.0.resume(throwing: error)
-    }
-
     // MARK: - Private
 
     private func startCapture(
@@ -433,15 +229,13 @@ class VoiceInputManager {
         maxDurationMs: Double,
         preferSpeechToText: Bool,
         onChunk: ((_ chunk: VoiceInputChunk) -> Void)?,
+        box: ResultBox,
         language: String?
     ) throws {
         guard AVAudioSession.sharedInstance().recordPermission == .granted else {
             throw VoiceInputError.microphonePermissionDenied
         }
 
-        guard stopLock.withLock({ !isStopping }) else {
-            throw VoiceInputError.noActiveSession
-        }
         var activeRecognitionRequest: SFSpeechAudioBufferRecognitionRequest? = nil
 
         if preferSpeechToText, SFSpeechRecognizer.authorizationStatus() == .authorized,
@@ -452,80 +246,56 @@ class VoiceInputManager {
         {
             let request = SFSpeechAudioBufferRecognitionRequest()
             request.shouldReportPartialResults = true
-            request.taskHint = .search
+            recognitionRequest = request
             activeRecognitionRequest = request
-            stopLock.withLock {
-                recognitionRequest = request
-                isSTTMode = true
-            }
 
-            let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
+            recognizer.recognitionTask(with: request) { [weak self] result, error in
                 guard let self else { return }
 
                 if error != nil {
-                    self.finishSpeechRecognition(
-                        transcription: nil,
-                        interfaceController: interfaceController
-                    )
+                    // STT failed — fall back to whatever PCM was accumulated
+                    self.stopLock.lock()
+                    self.isStopping = true
+                    let wasCancelled = self.cancelledByUser
+                    let capturedSamples = self.samples
+                    self.samples = []
+                    self.stopLock.unlock()
+
+                    self.cleanup(interfaceController: interfaceController)
+                    if wasCancelled {
+                        box.resume(throwing: AutoPlayError.voiceInputCancelled)
+                    }
+                    else {
+                        box.resume(returning: self.makePCMResult(from: capturedSamples))
+                    }
                     return
                 }
 
                 guard let result else { return }
 
                 if result.isFinal {
-                    self.finishSpeechRecognition(
-                        transcription: result.bestTranscription.formattedString,
-                        interfaceController: interfaceController
-                    )
-                }
-                else {
-                    let partialTranscript =
-                        result.bestTranscription.formattedString
-                    let trimmedPartialTranscript =
-                        partialTranscript
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    let partialState = self.stopLock.withLock {
-                        () -> (shouldEmit: Bool, activityGeneration: UInt?) in
-                        guard self.resultBox != nil else { return (false, nil) }
-                        let previousPartialTranscript = (self.latestPartialTranscript ?? "")
-                            .trimmingCharacters(in: .whitespacesAndNewlines)
-                        self.latestPartialTranscript = partialTranscript
-                        let transcriptChanged =
-                            !self.isStopping
-                            && !trimmedPartialTranscript.isEmpty
-                            && trimmedPartialTranscript != previousPartialTranscript
-                        guard transcriptChanged else {
-                            return (!self.isStopping, nil)
-                        }
+                    self.stopLock.lock()
+                    self.isStopping = true
+                    let wasCancelled = self.cancelledByUser
+                    self.samples = []
+                    self.stopLock.unlock()
 
-                        self.recognitionActivityGeneration &+= 1
-                        return (!self.isStopping, self.recognitionActivityGeneration)
+                    self.cleanup(interfaceController: interfaceController)
+                    if wasCancelled {
+                        box.resume(throwing: AutoPlayError.voiceInputCancelled)
                     }
-                    if partialState.shouldEmit {
-                        onChunk?(
-                            VoiceInputChunk(
-                                partial: partialTranscript,
+                    else {
+                        box.resume(
+                            returning: VoiceInputResult(
+                                transcription: result.bestTranscription.formattedString,
                                 audio: nil
                             )
                         )
                     }
-                    if let activityGeneration = partialState.activityGeneration {
-                        self.scheduleRecognitionInactivityTimeout(
-                            silenceThresholdMs: silenceThresholdMs,
-                            interfaceController: interfaceController,
-                            activityGeneration: activityGeneration
-                        )
-                    }
                 }
-            }
-
-            let shouldRetainTask = stopLock.withLock {
-                guard resultBox != nil else { return false }
-                recognitionTask = task
-                return true
-            }
-            if !shouldRetainTask {
-                task.cancel()
+                else {
+                    onChunk?(VoiceInputChunk(partial: result.bestTranscription.formattedString, audio: nil))
+                }
             }
         }
 
@@ -561,12 +331,8 @@ class VoiceInputManager {
 
             guard !stopping else { return }
 
-            let captureIsActive = self.stopLock.withLock {
-                guard !self.isStopping else { return false }
-                activeRecognitionRequest?.append(buffer)
-                return true
-            }
-            guard captureIsActive else { return }
+            // Feed STT if active
+            activeRecognitionRequest?.append(buffer)
 
             // Convert to 16kHz int16 for accumulation and PCM chunks
             let outputFrameCapacity = AVAudioFrameCount(
@@ -588,12 +354,11 @@ class VoiceInputManager {
 
             let frameCount = Int(outputBuffer.frameLength)
             let newSamples = Array(UnsafeBufferPointer(start: int16Data[0], count: frameCount))
-            let samplesWereAppended = self.stopLock.withLock {
-                guard !self.isStopping else { return false }
+            self.stopLock.lock()
+            if !self.isStopping {
                 self.samples.append(contentsOf: newSamples)
-                return true
             }
-            guard samplesWereAppended else { return }
+            self.stopLock.unlock()
 
             // PCM chunk callback
             if activeRecognitionRequest == nil, let onChunk {
@@ -605,9 +370,16 @@ class VoiceInputManager {
 
             let now = Date()
 
-            // PCM silence is amplitude-based. STT silence follows recognizer activity instead.
-            if activeRecognitionRequest == nil,
-                let start = recordingStartSnapshot,
+            // Max duration — applies in both modes
+            if let start = recordingStartSnapshot,
+                now.timeIntervalSince(start) * 1000 >= maxDurationMs
+            {
+                self.triggerAutoStop(interfaceController: interfaceController)
+                return
+            }
+
+            // Silence detection — skip during warm-up to let the pipeline stabilise.
+            if let start = recordingStartSnapshot,
                 now.timeIntervalSince(start) * 1000 >= VoiceInputManager.warmupMs
             {
                 let peak = newSamples.reduce(0) { max($0, abs(Int($1))) }
@@ -631,28 +403,8 @@ class VoiceInputManager {
             }
         }
 
-        stopLock.lock()
-        guard !isStopping else {
-            stopLock.unlock()
-            inputNode.removeTap(onBus: 0)
-            throw VoiceInputError.noActiveSession
-        }
-
-        do {
-            try engine.start()
-            audioEngine = engine
-            stopLock.unlock()
-        }
-        catch {
-            stopLock.unlock()
-            inputNode.removeTap(onBus: 0)
-            throw error
-        }
-
-        scheduleCaptureTimeout(
-            maxDurationMs: maxDurationMs,
-            interfaceController: interfaceController
-        )
+        try engine.start()
+        audioEngine = engine
     }
 
     private func triggerAutoStop(interfaceController: AutoPlayInterfaceController?) {
@@ -661,211 +413,23 @@ class VoiceInputManager {
         }
     }
 
-    private func scheduleCaptureTimeout(
-        maxDurationMs: Double,
-        interfaceController: AutoPlayInterfaceController?
-    ) {
-        let workItem = DispatchWorkItem { [weak self] in
-            self?.stop(interfaceController: interfaceController)
-        }
-
-        let scheduleState = stopLock.withLock {
-            () -> (shouldSchedule: Bool, previousWorkItem: DispatchWorkItem?) in
-            guard resultBox != nil, !isStopping else {
-                return (false, nil)
-            }
-
-            let previousWorkItem = captureTimeoutWorkItem
-            captureTimeoutWorkItem = workItem
-            return (true, previousWorkItem)
-        }
-
-        scheduleState.previousWorkItem?.cancel()
-        guard scheduleState.shouldSchedule else { return }
-
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(
-            deadline: .now() + max(maxDurationMs, 0) / 1_000,
-            execute: workItem
-        )
-    }
-
-    private func scheduleRecognitionInactivityTimeout(
-        silenceThresholdMs: Double,
-        interfaceController: AutoPlayInterfaceController?,
-        activityGeneration: UInt
-    ) {
-        let workItem = DispatchWorkItem { [weak self] in
-            self?.stop(
-                interfaceController: interfaceController,
-                expectedRecognitionActivityGeneration: activityGeneration
-            )
-        }
-
-        let scheduleState = stopLock.withLock {
-            () -> (shouldSchedule: Bool, previousWorkItem: DispatchWorkItem?) in
-            guard resultBox != nil,
-                !isStopping,
-                activityGeneration == recognitionActivityGeneration
-            else {
-                return (false, nil)
-            }
-
-            let previousWorkItem = recognitionInactivityWorkItem
-            recognitionInactivityWorkItem = workItem
-            return (true, previousWorkItem)
-        }
-
-        scheduleState.previousWorkItem?.cancel()
-        guard scheduleState.shouldSchedule else { return }
-
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(
-            deadline: .now() + max(silenceThresholdMs, 0) / 1_000,
-            execute: workItem
-        )
-    }
-
-    private func scheduleRecognitionFinalization(
-        interfaceController: AutoPlayInterfaceController?
-    ) {
-        let workItem = DispatchWorkItem { [weak self] in
-            self?.finishSpeechRecognition(
-                transcription: nil,
-                interfaceController: interfaceController
-            )
-        }
-
-        let shouldSchedule = stopLock.withLock {
-            guard resultBox != nil else { return false }
-            recognitionFinalizationWorkItem?.cancel()
-            recognitionFinalizationWorkItem = workItem
-            return true
-        }
-
-        guard shouldSchedule else { return }
-
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(
-            deadline: .now()
-                + VoiceInputManager.recognitionFinalizationTimeout,
-            execute: workItem
-        )
-    }
-
-    private func finishSpeechRecognition(
-        transcription: String?,
-        interfaceController: AutoPlayInterfaceController?
-    ) {
-        let resultState = stopLock.withLock {
-            () -> (
-                ResultBox,
-                Bool,
-                [Int16],
-                String?,
-                SFSpeechRecognitionTask?,
-                DispatchWorkItem?
-            )? in
-            guard let resultBox else { return nil }
-
-            isStopping = true
-            let resolvedTranscript =
-                transcription ?? latestPartialTranscript
-            let state = (
-                resultBox,
-                cancelledByUser,
-                samples,
-                resolvedTranscript,
-                recognitionTask,
-                recognitionFinalizationWorkItem
-            )
-
-            self.resultBox = nil
-            samples = []
-            recognitionTask = nil
-            recognitionFinalizationWorkItem = nil
-            latestPartialTranscript = nil
-            isSTTMode = false
-
-            return state
-        }
-
-        guard let resultState else { return }
-
-        resultState.5?.cancel()
-        resultState.4?.cancel()
-        cleanup(interfaceController: interfaceController)
-
-        if resultState.1 {
-            resultState.0.resume(
-                throwing: AutoPlayError.voiceInputCancelled
-            )
-            return
-        }
-
-        let transcript = resultState.3?.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
-        if let transcript, !transcript.isEmpty {
-            resultState.0.resume(
-                returning: VoiceInputResult(
-                    transcription: transcript,
-                    audio: nil
-                )
-            )
-            return
-        }
-
-        resultState.0.resume(
-            returning: makePCMResult(from: resultState.2)
-        )
-    }
-
-    private func cleanup(
-        interfaceController suppliedInterfaceController:
-            AutoPlayInterfaceController?
-    ) {
+    private func cleanup(interfaceController: AutoPlayInterfaceController?) {
         audioEngine?.inputNode.removeTap(onBus: 0)
         audioEngine?.stop()
         audioEngine = nil
         recognitionRequest = nil
         // Drain firstBufferContinuation so the template Task doesn't hang if stop() fired before the first buffer.
-        let cleanupState = stopLock.withLock {
-            () -> (
-                CheckedContinuation<Void, Never>?,
-                AutoPlayInterfaceController?,
-                String?,
-                DispatchWorkItem?,
-                DispatchWorkItem?
-            ) in
+        let pendingCont = stopLock.withLock { () -> CheckedContinuation<Void, Never>? in
             recordingStart = nil
             silenceStart = nil
-            let pendingContinuation = firstBufferContinuation
+
+            let c = firstBufferContinuation
             firstBufferContinuation = nil
-            let interfaceController =
-                suppliedInterfaceController ?? activeInterfaceController
-            activeInterfaceController = nil
-            let voiceTemplateId = voiceControlTemplate?.id
-            voiceControlTemplate = nil
-            let captureWorkItem = captureTimeoutWorkItem
-            captureTimeoutWorkItem = nil
-            let inactivityWorkItem = recognitionInactivityWorkItem
-            recognitionInactivityWorkItem = nil
-            return (
-                pendingContinuation,
-                interfaceController,
-                voiceTemplateId,
-                captureWorkItem,
-                inactivityWorkItem
-            )
+            return c
         }
-        cleanupState.0?.resume()
-        cleanupState.3?.cancel()
-        cleanupState.4?.cancel()
-        if let interfaceController = cleanupState.1,
-            let voiceTemplateId = cleanupState.2
-        {
-            dismissVoiceTemplate(
-                interfaceController: interfaceController,
-                templateId: voiceTemplateId
-            )
+        pendingCont?.resume()
+        if let interfaceController {
+            dismissVoiceTemplate(interfaceController: interfaceController)
         }
     }
 
@@ -958,7 +522,7 @@ class VoiceInputManager {
 
         let voiceTemplate = VoiceInputTemplate(
             voiceControlStates: [listeningState],
-            id: "voice-input-\(UUID().uuidString)"
+            id: "voice-input"
         ) { [weak self] in
             guard let self else { return }
             self.stopLock.withLock {
@@ -967,66 +531,16 @@ class VoiceInputManager {
             self.stop()
         }
 
-        let shouldPresent = stopLock.withLock {
-            guard !isStopping else { return false }
-            voiceControlTemplate = voiceTemplate.template
-            return true
-        }
-
-        guard shouldPresent else {
-            try? RootModule.withTemplateStore { templateStore in
-                templateStore.removeTemplate(templateId: voiceTemplate.template.id)
-            }
-            return
-        }
-
-        let wasPresented =
-            (try? await interfaceController.presentTemplate(
-                voiceTemplate.template,
-                animated: true
-            )) ?? false
-
-        guard wasPresented else {
-            let shouldFailVoiceInput = stopLock.withLock {
-                if voiceControlTemplate?.id == voiceTemplate.template.id {
-                    voiceControlTemplate = nil
-                }
-                return !isStopping
-            }
-            try? RootModule.withTemplateStore { templateStore in
-                templateStore.removeTemplate(templateId: voiceTemplate.template.id)
-            }
-            if shouldFailVoiceInput {
-                failVoiceInput(
-                    VoiceInputError.voiceTemplatePresentationFailed,
-                    interfaceController: interfaceController
-                )
-            }
-            return
-        }
-
-        guard !stopLock.withLock({ isStopping }) else {
-            dismissVoiceTemplate(
-                interfaceController: interfaceController,
-                templateId: voiceTemplate.template.id
-            )
-            return
-        }
-
+        voiceControlTemplate = voiceTemplate.template
+        try? await interfaceController.presentTemplate(voiceTemplate.template, animated: true)
         voiceTemplate.template.activateVoiceControlState(withIdentifier: "listening")
     }
 
-    private func dismissVoiceTemplate(
-        interfaceController: AutoPlayInterfaceController,
-        templateId: String
-    ) {
+    private func dismissVoiceTemplate(interfaceController: AutoPlayInterfaceController) {
         Task { @MainActor in
-            if interfaceController.interfaceController.presentedTemplate?.id
-                == templateId
-            {
-                try? await interfaceController.dismissTemplate(animated: true)
-            }
+            try? await interfaceController.dismissTemplate(animated: true)
         }
+        voiceControlTemplate = nil
     }
 }
 
@@ -1034,5 +548,4 @@ enum VoiceInputError: Error {
     case microphonePermissionDenied
     case converterUnavailable
     case noActiveSession
-    case voiceTemplatePresentationFailed
 }

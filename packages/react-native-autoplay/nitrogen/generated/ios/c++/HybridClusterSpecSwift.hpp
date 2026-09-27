@@ -30,50 +30,6 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct NitroColor;
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ColorScheme; }
 // Forward declaration of `ZoomEvent` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ZoomEvent; }
-// Forward declaration of `TripConfig` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct TripConfig; }
-// Forward declaration of `RouteChoice` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct RouteChoice; }
-// Forward declaration of `TripPoint` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct TripPoint; }
-// Forward declaration of `TravelEstimates` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct TravelEstimates; }
-// Forward declaration of `Distance` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct Distance; }
-// Forward declaration of `DistanceUnits` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class DistanceUnits; }
-// Forward declaration of `DurationWithTimeZone` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct DurationWithTimeZone; }
-// Forward declaration of `AutoText` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct AutoText; }
-// Forward declaration of `NitroRoutingManeuver` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct NitroRoutingManeuver; }
-// Forward declaration of `NitroMessageManeuver` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct NitroMessageManeuver; }
-// Forward declaration of `NitroLoadingManeuver` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct NitroLoadingManeuver; }
-// Forward declaration of `TurnType` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class TurnType; }
-// Forward declaration of `OffRampType` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class OffRampType; }
-// Forward declaration of `OnRampType` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class OnRampType; }
-// Forward declaration of `ForkType` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ForkType; }
-// Forward declaration of `KeepType` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class KeepType; }
-// Forward declaration of `LaneGuidance` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct LaneGuidance; }
-// Forward declaration of `PreferredImageLane` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct PreferredImageLane; }
-// Forward declaration of `ImageLane` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct ImageLane; }
-// Forward declaration of `TrafficSide` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class TrafficSide; }
-// Forward declaration of `ManeuverType` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ManeuverType; }
-// Forward declaration of `NavigationStopReason` to properly resolve imports.
-namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class NavigationStopReason; }
 
 #include <functional>
 #include "ClusterEventName.hpp"
@@ -90,28 +46,6 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class Navigat
 #include "NitroColor.hpp"
 #include "ColorScheme.hpp"
 #include "ZoomEvent.hpp"
-#include "TripConfig.hpp"
-#include "RouteChoice.hpp"
-#include "TripPoint.hpp"
-#include "TravelEstimates.hpp"
-#include "Distance.hpp"
-#include "DistanceUnits.hpp"
-#include "DurationWithTimeZone.hpp"
-#include "AutoText.hpp"
-#include "NitroRoutingManeuver.hpp"
-#include "NitroMessageManeuver.hpp"
-#include "NitroLoadingManeuver.hpp"
-#include "TurnType.hpp"
-#include "OffRampType.hpp"
-#include "OnRampType.hpp"
-#include "ForkType.hpp"
-#include "KeepType.hpp"
-#include "LaneGuidance.hpp"
-#include "PreferredImageLane.hpp"
-#include "ImageLane.hpp"
-#include "TrafficSide.hpp"
-#include "ManeuverType.hpp"
-#include "NavigationStopReason.hpp"
 
 #include "ReactNativeAutoPlay-Swift-Cxx-Umbrella.hpp"
 
@@ -216,36 +150,6 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
       }
       auto __value = std::move(__result.value());
       return __value;
-    }
-    inline void setNavigationCallbacks(const std::function<void()>& onStopNavigation, const std::optional<std::function<void()>>& onAutoDriveEnabled) override {
-      auto __result = _swiftPart.setNavigationCallbacks(onStopNavigation, onAutoDriveEnabled);
-      if (__result.hasError()) [[unlikely]] {
-        std::rethrow_exception(__result.error());
-      }
-    }
-    inline void startNavigation(const TripConfig& trip) override {
-      auto __result = _swiftPart.startNavigation(std::forward<decltype(trip)>(trip));
-      if (__result.hasError()) [[unlikely]] {
-        std::rethrow_exception(__result.error());
-      }
-    }
-    inline void updateTravelEstimates(const std::vector<TripPoint>& steps) override {
-      auto __result = _swiftPart.updateTravelEstimates(steps);
-      if (__result.hasError()) [[unlikely]] {
-        std::rethrow_exception(__result.error());
-      }
-    }
-    inline void updateManeuvers(const std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver>& maneuvers) override {
-      auto __result = _swiftPart.updateManeuvers(maneuvers);
-      if (__result.hasError()) [[unlikely]] {
-        std::rethrow_exception(__result.error());
-      }
-    }
-    inline void stopNavigation(NavigationStopReason reason) override {
-      auto __result = _swiftPart.stopNavigation(static_cast<int>(reason));
-      if (__result.hasError()) [[unlikely]] {
-        std::rethrow_exception(__result.error());
-      }
     }
 
   private:

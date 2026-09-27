@@ -3,7 +3,6 @@ package com.margelo.nitro.swe.iternio.reactnativeautoplay
 import com.margelo.nitro.core.Promise
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.AndroidAutoTemplate
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.ListTemplate
-import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.ThreadUtil
 
 class HybridListTemplate : HybridListTemplateSpec() {
 
@@ -20,14 +19,7 @@ class HybridListTemplate : HybridListTemplateSpec() {
     ): Promise<Unit> {
         return Promise.async {
             val template = AndroidAutoTemplate.getTemplate<ListTemplate>(templateId)
-            val result = ThreadUtil.postOnUiAndAwait {
-                template.updateSections(sections)
-            }
-
-            if (result.isFailure) {
-                throw result.exceptionOrNull()
-                    ?: UnknownError("unknown error updating list sections")
-            }
+            template.updateSections(sections)
         }
     }
 }
