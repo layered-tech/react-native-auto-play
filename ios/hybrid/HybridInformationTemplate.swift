@@ -10,15 +10,13 @@ import NitroModules
 class HybridInformationTemplate: HybridInformationTemplateSpec {
 
     func createInformationTemplate(config: InformationTemplateConfig) throws {
-        try RootModule.performOnMainActor {
-            let template = InformationTemplate(config: config)
+        let template = InformationTemplate(config: config)
 
-            try RootModule.withTemplateStore { templateStore in
-                templateStore.addTemplate(
-                    template: template,
-                    templateId: config.id
-                )
-            }
+        try RootModule.withTemplateStore { templateStore in
+            templateStore.addTemplate(
+                template: template,
+                templateId: config.id
+            )
         }
     }
 

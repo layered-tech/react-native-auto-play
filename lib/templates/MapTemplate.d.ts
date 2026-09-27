@@ -1,13 +1,12 @@
 import React from 'react';
 import type { AutoText } from '..';
 import type { ActionButtonAndroid, ImageButton, MapButton, MapPanButton, TextButton } from '../types/Button';
-import type { AutoManeuver, ManeuverState, RoutingManeuver } from '../types/Maneuver';
+import type { AutoManeuver, ManeuverState } from '../types/Maneuver';
 import type { ColorScheme, RootComponentInitialProps } from '../types/RootComponent';
 import type { TripConfig, TripPoint, TripPreviewTextConfiguration, TripsConfig } from '../types/Trip';
 import { type NitroAction } from '../utils/NitroAction';
 import { type NavigationAlert } from '../utils/NitroAlert';
 import { type NitroColor, type ThemedColor } from '../utils/NitroColor';
-import { type NitroManeuver } from '../utils/NitroManeuver';
 import { NitroMapButton } from '../utils/NitroMapButton';
 import { type OptionsPanelConfig } from '../utils/NitroOptionsPanel';
 import { type HeaderActionsIos, type NitroBaseMapTemplateConfig, Template, type TemplateConfig } from './Template';
@@ -130,7 +129,6 @@ export type MapTemplateConfig = Omit<NitroMapTemplateConfig, 'mapButtons' | 'hea
 export interface TripSelectorCallback {
     setSelectedTrip: (id: string) => void;
 }
-export declare function convertAutoManeuver(maneuvers: AutoManeuver): NitroManeuver;
 export declare class MapTemplate extends Template<MapTemplateConfig, MapTemplateConfig['headerActions']> {
     id: string;
     private template;
@@ -181,11 +179,6 @@ export declare class MapTemplate extends Template<MapTemplateConfig, MapTemplate
      * @namespace iOS will update travelEstimates only when passing in maneuvers with the same id
      */
     updateManeuvers(maneuvers: AutoManeuver): void;
-    /**
-     * Registers the complete known route for vehicle displays while updateManeuvers
-     * continues to control the smaller visible maneuver window.
-     */
-    registerManeuvers(maneuvers: Array<RoutingManeuver>): void;
     /**
      * either use showTripSelector to show a set of trips and let the user start the navigation session
      * or use this to start a navigation session without asking the user

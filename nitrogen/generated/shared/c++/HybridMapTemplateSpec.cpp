@@ -24,7 +24,6 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
       prototype.registerHybridMethod("updateVisibleTravelEstimate", &HybridMapTemplateSpec::updateVisibleTravelEstimate);
       prototype.registerHybridMethod("updateTravelEstimates", &HybridMapTemplateSpec::updateTravelEstimates);
       prototype.registerHybridMethod("updateManeuvers", &HybridMapTemplateSpec::updateManeuvers);
-      prototype.registerHybridMethod("registerManeuvers", &HybridMapTemplateSpec::registerManeuvers);
       prototype.registerHybridMethod("startNavigation", &HybridMapTemplateSpec::startNavigation);
       prototype.registerHybridMethod("stopNavigation", &HybridMapTemplateSpec::stopNavigation);
       prototype.registerHybridMethod("setManeuverState", &HybridMapTemplateSpec::setManeuverState);

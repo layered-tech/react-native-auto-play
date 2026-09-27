@@ -23,12 +23,8 @@ abstract class AndroidAutoTemplate<T>(val context: CarContext, var config: T) {
     abstract val autoDismissMs: Double?
 
     fun applyConfigUpdate() {
-        applyConfigUpdate(immediate = false)
-    }
-
-    fun applyConfigUpdate(immediate: Boolean) {
         val screen = AndroidAutoScreen.getScreen(templateId)
-        screen?.applyConfigUpdate(invalidate = true, immediate = immediate)
+        screen?.applyConfigUpdate(invalidate = true)
     }
 
     companion object {

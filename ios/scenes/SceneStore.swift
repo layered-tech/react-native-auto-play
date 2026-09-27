@@ -32,10 +32,7 @@ class SceneStore {
     }
 
     static func removeScene(moduleName: String) {
-        withLock {
-            renderState.removeValue(forKey: moduleName)
-            store.removeValue(forKey: moduleName)
-        }
+        let _ = withLock { store.removeValue(forKey: moduleName) }
     }
 
     static func getScene(moduleName: String) -> AutoPlayScene? {

@@ -4,7 +4,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MapTemplate = exports.NavigationStopReason = void 0;
-exports.convertAutoManeuver = convertAutoManeuver;
 const react_1 = __importDefault(require("react"));
 const react_native_1 = require("react-native");
 const react_native_nitro_modules_1 = require("react-native-nitro-modules");
@@ -25,27 +24,6 @@ var NavigationStopReason;
     NavigationStopReason[NavigationStopReason["Arrived"] = 0] = "Arrived";
     NavigationStopReason[NavigationStopReason["Cancelled"] = 1] = "Cancelled";
 })(NavigationStopReason || (exports.NavigationStopReason = NavigationStopReason = {}));
-function convertRoutingManeuvers(maneuvers) {
-    return maneuvers.reduce((convertedManeuvers, maneuver) => {
-        if (maneuver != null) {
-            convertedManeuvers.push(NitroManeuver_1.NitroManeuverUtil.convert(maneuver));
-        }
-        return convertedManeuvers;
-    }, []);
-}
-function convertAutoManeuver(maneuvers) {
-    if (Array.isArray(maneuvers)) {
-        return convertRoutingManeuvers(maneuvers);
-    }
-    if (maneuvers.type === 'loading') {
-        return {
-            isLoading: true,
-            cardBackgroundColor: NitroColor_1.NitroColorUtil.convert(maneuvers.cardBackgroundColor),
-            text: maneuvers.text != null ? maneuvers.text : undefined,
-        };
-    }
-    return NitroManeuver_1.NitroManeuverUtil.convert(maneuvers);
-}
 class MapTemplate extends Template_1.Template {
     id = 'AutoPlayRoot';
     template = this;
@@ -150,14 +128,27 @@ class MapTemplate extends Template_1.Template {
      * @namespace iOS will update travelEstimates only when passing in maneuvers with the same id
      */
     updateManeuvers(maneuvers) {
-        HybridMapTemplate.updateManeuvers(this.id, convertAutoManeuver(maneuvers));
-    }
-    /**
-     * Registers the complete known route for vehicle displays while updateManeuvers
-     * continues to control the smaller visible maneuver window.
-     */
-    registerManeuvers(maneuvers) {
-        HybridMapTemplate.registerManeuvers(this.id, convertRoutingManeuvers(maneuvers));
+        if (Array.isArray(maneuvers)) {
+            const nitroManeuvers = maneuvers.reduce((acc, maneuver) => {
+                if (maneuver == null) {
+                    return acc;
+                }
+                acc.push(NitroManeuver_1.NitroManeuverUtil.convert(maneuver));
+                return acc;
+            }, []);
+            HybridMapTemplate.updateManeuvers(this.id, nitroManeuvers);
+            return;
+        }
+        if (maneuvers.type === 'loading') {
+            HybridMapTemplate.updateManeuvers(this.id, {
+                isLoading: true,
+                cardBackgroundColor: NitroColor_1.NitroColorUtil.convert(maneuvers.cardBackgroundColor),
+                text: maneuvers.text != null ? maneuvers.text : undefined,
+            });
+            return;
+        }
+        const messageManeuver = NitroManeuver_1.NitroManeuverUtil.convert(maneuvers);
+        HybridMapTemplate.updateManeuvers(this.id, messageManeuver);
     }
     /**
      * either use showTripSelector to show a set of trips and let the user start the navigation session

@@ -823,10 +823,6 @@ Map-specific callbacks live on `MapTemplateConfig`:
 - `onAutoDriveEnabled(template)` (Android)
 - `onStopNavigation(template)` (**required**)
 
-Call `registerManeuvers()` with the complete known route after `startNavigation()`, then use
-`updateManeuvers()` for the smaller visible maneuver window. End a completed trip with
-`stopNavigation(NavigationStopReason.Arrived)`; user or host cancellation remains the default.
-
 #### AutoPlayCluster listeners (instrument cluster)
 
 | API | Payload | Notes |
@@ -1156,25 +1152,21 @@ HybridVoice.startVoiceInput().catch((e) => {
 `addListenerVoiceInput` fires when the OS itself initiates a voice action (e.g. "Hey Google, navigate to…"). It is a no-op on iOS — use `startVoiceInput` for in-app recording on both platforms.
 
 ```ts
-const cleanup = HybridAutoPlay.addListenerVoiceInput((location, query, requestType) => {
-  console.log('Voice request:', requestType, query, 'near', location);
+const cleanup = HybridAutoPlay.addListenerVoiceInput((location, query) => {
+  console.log('Voice query:', query, 'near', location);
 });
 ```
 
 #### useVoiceInput hook (Android only)
 
-A convenience hook that wires up `addListenerVoiceInput` and exposes the latest classified request reactively.
+A convenience hook that wires up `addListenerVoiceInput` and exposes the latest `location` and `query` values reactively.
 
 ```tsx
 import { useVoiceInput } from '@iternio/react-native-auto-play';
 
 const MyScreen = () => {
-  const { voiceInputResult, resetVoiceInputResult } = useVoiceInput();
-  return (
-    <Text onPress={resetVoiceInputResult}>
-      {voiceInputResult?.query ?? voiceInputResult?.requestType ?? 'Say something…'}
-    </Text>
-  );
+  const { location, query } = useVoiceInput();
+  return <Text>{query ?? 'Say something…'}</Text>;
 };
 ```
 
@@ -1183,7 +1175,7 @@ const MyScreen = () => {
 ### Hooks
 
 -   `useMapTemplate()`: Get a reference to the parent `MapTemplate` instance.
--   `useVoiceInput()`: Reactively exposes the latest classified Android OS voice request. For in-app recording use `HybridVoice.startVoiceInput` / `stopVoiceInput` directly.
+-   `useVoiceInput()`: Reactively exposes the latest OS-triggered voice input (`location`, `query`). Android only — for in-app recording use `startVoiceInput` / `stopVoiceInput` directly.
 -   `useSafeAreaInsets()`: Get safe area insets for any root component.
 -   `useFocusedEffect()`: A useEffect alternative that executes when the specified component is visible to the user - use any of the `AutoPlayModules` enum or a cluster uuid to sepcify the component the effect should listen for.
 -   `useAndroidAutoTelemetry()`: Access to car telemetry data on Android Auto and Android Automotive.
@@ -1351,3 +1343,13 @@ Contributions are welcome! Feel free to open up a [discussion](https://github.co
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](../../LICENSE.md) file for details.
+
+### Fork additions
+
+Android `HybridAutoPlay.addListenerVoiceInput` and `useVoiceInput` include a
+`requestType` (`navigation`, `directions`, `search`, or `query`) alongside the
+coordinates and query. Cold-start requests are delivered when the listener attaches.
+
+`MapTemplate.stopNavigation(reason)` accepts `NavigationStopReason.Arrived` or
+`NavigationStopReason.Cancelled` (the default). On CarPlay, arrival finishes the
+trip and cancellation cancels it; Android uses its standard navigation-stop API.

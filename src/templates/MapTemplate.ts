@@ -14,7 +14,7 @@ import type {
   MapPanButton,
   TextButton,
 } from '../types/Button';
-import type { AutoManeuver, ManeuverState, RoutingManeuver } from '../types/Maneuver';
+import type { AutoManeuver, ManeuverState } from '../types/Maneuver';
 import type { ColorScheme, RootComponentInitialProps } from '../types/RootComponent';
 import type {
   TripConfig,
@@ -25,11 +25,7 @@ import type {
 import { type NitroAction, NitroActionUtil } from '../utils/NitroAction';
 import { type NavigationAlert, NitroAlertUtil } from '../utils/NitroAlert';
 import { type NitroColor, NitroColorUtil, type ThemedColor } from '../utils/NitroColor';
-import {
-  type NitroManeuver,
-  NitroManeuverUtil,
-  type NitroRoutingManeuver,
-} from '../utils/NitroManeuver';
+import { NitroManeuverUtil, type NitroRoutingManeuver } from '../utils/NitroManeuver';
 import { NitroMapButton } from '../utils/NitroMapButton';
 import { NitroOptionsPanelUtil, type OptionsPanelConfig } from '../utils/NitroOptionsPanel';
 import {
@@ -218,34 +214,6 @@ export interface TripSelectorCallback {
   setSelectedTrip: (id: string) => void;
 }
 
-function convertRoutingManeuvers(
-  maneuvers: Array<RoutingManeuver | null | undefined>
-): Array<NitroRoutingManeuver> {
-  return maneuvers.reduce<Array<NitroRoutingManeuver>>((convertedManeuvers, maneuver) => {
-    if (maneuver != null) {
-      convertedManeuvers.push(NitroManeuverUtil.convert(maneuver));
-    }
-
-    return convertedManeuvers;
-  }, []);
-}
-
-export function convertAutoManeuver(maneuvers: AutoManeuver): NitroManeuver {
-  if (Array.isArray(maneuvers)) {
-    return convertRoutingManeuvers(maneuvers);
-  }
-
-  if (maneuvers.type === 'loading') {
-    return {
-      isLoading: true,
-      cardBackgroundColor: NitroColorUtil.convert(maneuvers.cardBackgroundColor),
-      text: maneuvers.text != null ? maneuvers.text : undefined,
-    };
-  }
-
-  return NitroManeuverUtil.convert(maneuvers);
-}
-
 export class MapTemplate extends Template<MapTemplateConfig, MapTemplateConfig['headerActions']> {
   id = 'AutoPlayRoot';
   private template = this;
@@ -427,15 +395,31 @@ export class MapTemplate extends Template<MapTemplateConfig, MapTemplateConfig['
    * @namespace iOS will update travelEstimates only when passing in maneuvers with the same id
    */
   public updateManeuvers(maneuvers: AutoManeuver) {
-    HybridMapTemplate.updateManeuvers(this.id, convertAutoManeuver(maneuvers));
-  }
+    if (Array.isArray(maneuvers)) {
+      const nitroManeuvers = maneuvers.reduce((acc, maneuver) => {
+        if (maneuver == null) {
+          return acc;
+        }
 
-  /**
-   * Registers the complete known route for vehicle displays while updateManeuvers
-   * continues to control the smaller visible maneuver window.
-   */
-  public registerManeuvers(maneuvers: Array<RoutingManeuver>) {
-    HybridMapTemplate.registerManeuvers(this.id, convertRoutingManeuvers(maneuvers));
+        acc.push(NitroManeuverUtil.convert(maneuver));
+        return acc;
+      }, [] as NitroRoutingManeuver[]);
+
+      HybridMapTemplate.updateManeuvers(this.id, nitroManeuvers);
+      return;
+    }
+
+    if (maneuvers.type === 'loading') {
+      HybridMapTemplate.updateManeuvers(this.id, {
+        isLoading: true,
+        cardBackgroundColor: NitroColorUtil.convert(maneuvers.cardBackgroundColor),
+        text: maneuvers.text != null ? maneuvers.text : undefined,
+      });
+      return;
+    }
+
+    const messageManeuver = NitroManeuverUtil.convert(maneuvers);
+    HybridMapTemplate.updateManeuvers(this.id, messageManeuver);
   }
 
   /**

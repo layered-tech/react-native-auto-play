@@ -288,17 +288,6 @@ open class HybridMapTemplateSpec_cxx {
   }
   
   @inline(__always)
-  public final func registerManeuvers(templateId: std.string, maneuvers: bridge.std__vector_NitroRoutingManeuver_) -> bridge.Result_void_ {
-    do {
-      try self.__implementation.registerManeuvers(templateId: String(templateId), maneuvers: maneuvers.map({ __item in __item }))
-      return bridge.create_Result_void_()
-    } catch (let __error) {
-      let __exceptionPtr = __error.toCpp()
-      return bridge.create_Result_void_(__exceptionPtr)
-    }
-  }
-  
-  @inline(__always)
   public final func startNavigation(templateId: std.string, trip: TripConfig) -> bridge.Result_std__shared_ptr_Promise_void___ {
     do {
       let __result = try self.__implementation.startNavigation(templateId: String(templateId), trip: trip)

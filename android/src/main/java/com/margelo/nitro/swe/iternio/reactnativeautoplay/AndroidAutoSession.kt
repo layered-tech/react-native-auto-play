@@ -12,6 +12,8 @@ import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Template
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import com.facebook.react.bridge.LifecycleEventListener
+import com.margelo.nitro.NitroModules
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.AndroidAutoTemplate
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.MapTemplate
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.AppInfo
@@ -27,7 +29,6 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
     private val isCluster = sessionInfo.displayType == SessionInfo.DISPLAY_TYPE_CLUSTER
     private val clusterId = if (isCluster) UUID.randomUUID().toString() else null
     private val moduleName = clusterId ?: ROOT_SESSION
-    private val navigationSessionId = UUID.randomUUID().toString()
 
     private fun getInitialTemplate(): Template {
         if (isCluster) {
@@ -85,15 +86,8 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
             clusterSessions.add(it)
         }
 
-        if (BuildConfig.IS_NAVIGATION_APP) {
-            NavigationManagerCoordinator.registerSession(
-                navigationSessionId,
-                carContext,
-                isRootSession = clusterId == null
-            )
-        }
-
         lifecycle.addObserver(sessionLifecycleObserver)
+        NitroModules.applicationContext?.addLifecycleEventListener(reactLifecycleObserver)
 
         if (clusterId == null) {
             HybridAutoPlay.emit(EventName.DIDCONNECT)
@@ -103,6 +97,20 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
         }
 
         return screen
+
+        // TODO this is not required for templates that host a component, check if we need this for non-rendering templates
+        /*
+        val appRegistry = reactContext.getJSModule(AppRegistry::class.java)
+            ?: throw ClassNotFoundException("could not get AppRegistry instance")
+        val jsAppModuleName = if (isCluster) "AndroidAutoCluster" else "AndroidAuto"
+        val appParams = WritableNativeMap().apply {
+            putMap("initialProps", Arguments.createMap().apply {
+                putString("id", clusterTemplateId)
+            })
+        }
+
+        appRegistry.runApplication(jsAppModuleName, appParams)
+        */
     }
 
     override fun onCarConfigurationChanged(configuration: Configuration) {
@@ -565,12 +573,6 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
         }
 
         override fun onDestroy(owner: LifecycleOwner) {
-            if (BuildConfig.IS_NAVIGATION_APP) {
-                if (clusterId == null) {
-                    MapTemplate.clearRootNavigationCallbacks(carContext)
-                }
-                NavigationManagerCoordinator.unregisterSession(navigationSessionId)
-            }
             sessions.remove(moduleName)
             VirtualRenderer.removeRenderer(moduleName)
             clusterId?.let {
@@ -581,6 +583,16 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
 
             HybridAutoPlay.clearPendingVoiceInput()
             HybridAutoPlay.emit(EventName.DIDDISCONNECT)
+        }
+    }
+
+    private val reactLifecycleObserver = object : LifecycleEventListener {
+        override fun onHostResume() {}
+
+        override fun onHostPause() {}
+
+        override fun onHostDestroy() {
+            carContext.finishCarApp()
         }
     }
 

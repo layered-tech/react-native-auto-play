@@ -33,9 +33,7 @@ class WindowApplicationSceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         if let url = connectionOptions.urlContexts.first?.url {
             // Linking API -> on app start
-            if !openExpoDevelopmentClient(url) {
-                NitroLinkingManager.shared().launchURL = url
-            }
+            NitroLinkingManager.shared().launchURL = url
         }
 
         if let userActivity = connectionOptions.userActivities.first(where: {
@@ -53,22 +51,7 @@ class WindowApplicationSceneDelegate: UIResponder, UIWindowSceneDelegate {
     ) {
         // Linking API -> app already running
         guard let urlContext = URLContexts.first else { return }
-
-        if openExpoDevelopmentClient(urlContext.url) {
-            return
-        }
-
         NitroLinkingManager.shared().openURL(urlContext)
-    }
-
-    private func openExpoDevelopmentClient(_ url: URL) -> Bool {
-        guard url.host == "expo-development-client" else { return false }
-
-        return UIApplication.shared.delegate?.application?(
-            UIApplication.shared,
-            open: url,
-            options: [:]
-        ) ?? false
     }
 
     func scene(

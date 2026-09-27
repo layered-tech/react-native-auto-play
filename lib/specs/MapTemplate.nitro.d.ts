@@ -4,7 +4,7 @@ import type { ManeuverState } from '../types/Maneuver';
 import type { AutoText } from '../types/Text';
 import type { TripConfig, TripPoint, TripPreviewTextConfiguration, TripsConfig } from '../types/Trip';
 import type { NitroNavigationAlert } from '../utils/NitroAlert';
-import type { NitroManeuver, NitroRoutingManeuver } from '../utils/NitroManeuver';
+import type { NitroManeuver } from '../utils/NitroManeuver';
 import type { NitroMapButton } from '../utils/NitroMapButton';
 import type { NitroOptionsPanelConfig } from '../utils/NitroOptionsPanel';
 import type { NitroTemplateConfig } from './AutoPlay.nitro';
@@ -24,7 +24,6 @@ export interface MapTemplate extends HybridObject<{
     updateVisibleTravelEstimate(templateId: string, visibleTravelEstimate: VisibleTravelEstimate): void;
     updateTravelEstimates(templateId: string, steps: Array<TripPoint>): void;
     updateManeuvers(templateId: string, maneuvers: NitroManeuver): void;
-    registerManeuvers(templateId: string, maneuvers: Array<NitroRoutingManeuver>): void;
     startNavigation(templateId: string, trip: TripConfig): Promise<void>;
     stopNavigation(templateId: string, reason: NavigationStopReason): void;
     setManeuverState(templateId: string, state: ManeuverState): void;

@@ -23,7 +23,6 @@ public protocol HybridMapTemplateSpec_protocol: HybridObject {
   func updateVisibleTravelEstimate(templateId: String, visibleTravelEstimate: VisibleTravelEstimate) throws -> Void
   func updateTravelEstimates(templateId: String, steps: [TripPoint]) throws -> Void
   func updateManeuvers(templateId: String, maneuvers: NitroManeuver) throws -> Void
-  func registerManeuvers(templateId: String, maneuvers: [NitroRoutingManeuver]) throws -> Void
   func startNavigation(templateId: String, trip: TripConfig) throws -> Promise<Void>
   func stopNavigation(templateId: String, reason: NavigationStopReason) throws -> Void
   func setManeuverState(templateId: String, state: ManeuverState) throws -> Void

@@ -23,7 +23,6 @@ import androidx.car.app.SurfaceCallback
 import androidx.car.app.SurfaceContainer
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactContext
-import com.facebook.react.common.LifecycleState
 import com.facebook.react.fabric.FabricUIManager
 import com.facebook.react.runtime.ReactSurfaceImpl
 import com.facebook.react.runtime.ReactSurfaceView
@@ -35,7 +34,6 @@ import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.AndroidAutoTem
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.AppInfo
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.Debouncer
 import java.util.concurrent.ConcurrentHashMap
-import java.util.IdentityHashMap
 import kotlin.math.floor
 
 class VirtualRenderer(
@@ -53,7 +51,6 @@ class VirtualRenderer(
     private var reactSurfaceImpl: ReactSurfaceImpl? = null
     private var reactSurfaceView: ReactSurfaceView? = null
     private var reactSurfaceId: Int? = null
-    private var fabricLifecycleManager: FabricUIManager? = null
 
     private var height: Int = 0
     private var width: Int = 0
@@ -407,8 +404,10 @@ class VirtualRenderer(
                     )
                 )
 
-                acquireFabricLifecycle(context, fabricUiManager)
-                fabricLifecycleManager = fabricUiManager
+                // remove ui-managers lifecycle listener to not stop rendering when app is not in foreground/phone screen is off
+                context.removeLifecycleEventListener(fabricUiManager)
+                // trigger ui-managers onHostResume to make sure the surface is rendered properly even when AA only is starting without the phone app
+                fabricUiManager.onHostResume()
 
                 reactSurfaceView = surfaceView
             }
@@ -537,13 +536,6 @@ class VirtualRenderer(
         } catch (_: AssertionError) {
             // Fabric already invalidated
         } finally {
-            val lifecycleManager = fabricLifecycleManager
-
-            if (lifecycleManager != null) {
-                releaseFabricLifecycle(lifecycleManager)
-            }
-
-            fabricLifecycleManager = null
             reactSurfaceId = null
             reactSurfaceView = null
             reactSurfaceImpl = null
@@ -586,53 +578,7 @@ class VirtualRenderer(
     companion object {
         const val TAG = "VirtualRenderer"
 
-        private data class FabricLifecycleState(
-            val context: ReactContext,
-            var surfaceCount: Int,
-        )
-
         private val virtualRenderer = ConcurrentHashMap<String, VirtualRenderer>()
-        private val fabricLifecycleStates =
-            IdentityHashMap<FabricUIManager, FabricLifecycleState>()
-
-        @MainThread
-        private fun acquireFabricLifecycle(
-            context: ReactContext,
-            fabricUiManager: FabricUIManager,
-        ) {
-            val currentState = fabricLifecycleStates[fabricUiManager]
-
-            if (currentState != null) {
-                currentState.surfaceCount += 1
-                return
-            }
-
-            context.removeLifecycleEventListener(fabricUiManager)
-            fabricUiManager.onHostResume()
-            fabricLifecycleStates[fabricUiManager] = FabricLifecycleState(
-                context = context,
-                surfaceCount = 1,
-            )
-        }
-
-        @MainThread
-        private fun releaseFabricLifecycle(
-            fabricUiManager: FabricUIManager,
-        ) {
-            val currentState = fabricLifecycleStates[fabricUiManager] ?: return
-
-            currentState.surfaceCount -= 1
-            if (currentState.surfaceCount > 0) {
-                return
-            }
-
-            fabricLifecycleStates.remove(fabricUiManager)
-            currentState.context.addLifecycleEventListener(fabricUiManager)
-
-            if (currentState.context.lifecycleState != LifecycleState.RESUMED) {
-                fabricUiManager.onHostPause()
-            }
-        }
 
         fun hasRenderer(moduleId: String): Boolean {
             return virtualRenderer.contains(moduleId)

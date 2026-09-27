@@ -827,279 +827,6 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay::bridge::swift {
     return Func_void_std__string_bool_Wrapper(std::move(value));
   }
   
-  // pragma MARK: std::optional<std::function<void()>>
-  /**
-   * Specialized version of `std::optional<std::function<void()>>`.
-   */
-  using std__optional_std__function_void____ = std::optional<std::function<void()>>;
-  inline std::optional<std::function<void()>> create_std__optional_std__function_void____(const std::function<void()>& value) noexcept {
-    return std::optional<std::function<void()>>(value);
-  }
-  inline bool has_value_std__optional_std__function_void____(const std::optional<std::function<void()>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::function<void()> get_std__optional_std__function_void____(const std::optional<std::function<void()>>& optional) noexcept {
-    return optional.value();
-  }
-  
-  // pragma MARK: std::optional<Distance>
-  /**
-   * Specialized version of `std::optional<Distance>`.
-   */
-  using std__optional_Distance_ = std::optional<Distance>;
-  inline std::optional<Distance> create_std__optional_Distance_(const Distance& value) noexcept {
-    return std::optional<Distance>(value);
-  }
-  inline bool has_value_std__optional_Distance_(const std::optional<Distance>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline Distance get_std__optional_Distance_(const std::optional<Distance>& optional) noexcept {
-    return optional.value();
-  }
-  
-  // pragma MARK: std::optional<AutoText>
-  /**
-   * Specialized version of `std::optional<AutoText>`.
-   */
-  using std__optional_AutoText_ = std::optional<AutoText>;
-  inline std::optional<AutoText> create_std__optional_AutoText_(const AutoText& value) noexcept {
-    return std::optional<AutoText>(value);
-  }
-  inline bool has_value_std__optional_AutoText_(const std::optional<AutoText>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline AutoText get_std__optional_AutoText_(const std::optional<AutoText>& optional) noexcept {
-    return optional.value();
-  }
-  
-  // pragma MARK: std::vector<TripPoint>
-  /**
-   * Specialized version of `std::vector<TripPoint>`.
-   */
-  using std__vector_TripPoint_ = std::vector<TripPoint>;
-  inline std::vector<TripPoint> create_std__vector_TripPoint_(size_t size) noexcept {
-    std::vector<TripPoint> vector;
-    vector.reserve(size);
-    return vector;
-  }
-  
-  // pragma MARK: std::optional<TurnType>
-  /**
-   * Specialized version of `std::optional<TurnType>`.
-   */
-  using std__optional_TurnType_ = std::optional<TurnType>;
-  inline std::optional<TurnType> create_std__optional_TurnType_(const TurnType& value) noexcept {
-    return std::optional<TurnType>(value);
-  }
-  inline bool has_value_std__optional_TurnType_(const std::optional<TurnType>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline TurnType get_std__optional_TurnType_(const std::optional<TurnType>& optional) noexcept {
-    return optional.value();
-  }
-  
-  // pragma MARK: std::vector<double>
-  /**
-   * Specialized version of `std::vector<double>`.
-   */
-  using std__vector_double_ = std::vector<double>;
-  inline std::vector<double> create_std__vector_double_(size_t size) noexcept {
-    std::vector<double> vector;
-    vector.reserve(size);
-    return vector;
-  }
-  
-  // pragma MARK: std::optional<std::vector<double>>
-  /**
-   * Specialized version of `std::optional<std::vector<double>>`.
-   */
-  using std__optional_std__vector_double__ = std::optional<std::vector<double>>;
-  inline std::optional<std::vector<double>> create_std__optional_std__vector_double__(const std::vector<double>& value) noexcept {
-    return std::optional<std::vector<double>>(value);
-  }
-  inline bool has_value_std__optional_std__vector_double__(const std::optional<std::vector<double>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::vector<double> get_std__optional_std__vector_double__(const std::optional<std::vector<double>>& optional) noexcept {
-    return optional.value();
-  }
-  
-  // pragma MARK: std::optional<OffRampType>
-  /**
-   * Specialized version of `std::optional<OffRampType>`.
-   */
-  using std__optional_OffRampType_ = std::optional<OffRampType>;
-  inline std::optional<OffRampType> create_std__optional_OffRampType_(const OffRampType& value) noexcept {
-    return std::optional<OffRampType>(value);
-  }
-  inline bool has_value_std__optional_OffRampType_(const std::optional<OffRampType>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline OffRampType get_std__optional_OffRampType_(const std::optional<OffRampType>& optional) noexcept {
-    return optional.value();
-  }
-  
-  // pragma MARK: std::optional<OnRampType>
-  /**
-   * Specialized version of `std::optional<OnRampType>`.
-   */
-  using std__optional_OnRampType_ = std::optional<OnRampType>;
-  inline std::optional<OnRampType> create_std__optional_OnRampType_(const OnRampType& value) noexcept {
-    return std::optional<OnRampType>(value);
-  }
-  inline bool has_value_std__optional_OnRampType_(const std::optional<OnRampType>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline OnRampType get_std__optional_OnRampType_(const std::optional<OnRampType>& optional) noexcept {
-    return optional.value();
-  }
-  
-  // pragma MARK: std::optional<ForkType>
-  /**
-   * Specialized version of `std::optional<ForkType>`.
-   */
-  using std__optional_ForkType_ = std::optional<ForkType>;
-  inline std::optional<ForkType> create_std__optional_ForkType_(const ForkType& value) noexcept {
-    return std::optional<ForkType>(value);
-  }
-  inline bool has_value_std__optional_ForkType_(const std::optional<ForkType>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline ForkType get_std__optional_ForkType_(const std::optional<ForkType>& optional) noexcept {
-    return optional.value();
-  }
-  
-  // pragma MARK: std::optional<KeepType>
-  /**
-   * Specialized version of `std::optional<KeepType>`.
-   */
-  using std__optional_KeepType_ = std::optional<KeepType>;
-  inline std::optional<KeepType> create_std__optional_KeepType_(const KeepType& value) noexcept {
-    return std::optional<KeepType>(value);
-  }
-  inline bool has_value_std__optional_KeepType_(const std::optional<KeepType>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline KeepType get_std__optional_KeepType_(const std::optional<KeepType>& optional) noexcept {
-    return optional.value();
-  }
-  
-  // pragma MARK: std::variant<PreferredImageLane, ImageLane>
-  /**
-   * Wrapper struct for `std::variant<PreferredImageLane, ImageLane>`.
-   * std::variant cannot be used in Swift because of a Swift bug.
-   * Not even specializing it works. So we create a wrapper struct.
-   */
-  struct std__variant_PreferredImageLane__ImageLane_ final {
-    std::variant<PreferredImageLane, ImageLane> variant;
-    std__variant_PreferredImageLane__ImageLane_(std::variant<PreferredImageLane, ImageLane> variant): variant(variant) { }
-    operator std::variant<PreferredImageLane, ImageLane>() const noexcept {
-      return variant;
-    }
-    inline size_t index() const noexcept {
-      return variant.index();
-    }
-    inline PreferredImageLane get_0() const noexcept {
-      return std::get<0>(variant);
-    }
-    inline ImageLane get_1() const noexcept {
-      return std::get<1>(variant);
-    }
-  };
-  inline std__variant_PreferredImageLane__ImageLane_ create_std__variant_PreferredImageLane__ImageLane_(const PreferredImageLane& value) noexcept {
-    return std__variant_PreferredImageLane__ImageLane_(value);
-  }
-  inline std__variant_PreferredImageLane__ImageLane_ create_std__variant_PreferredImageLane__ImageLane_(const ImageLane& value) noexcept {
-    return std__variant_PreferredImageLane__ImageLane_(value);
-  }
-  
-  // pragma MARK: std::vector<std::variant<PreferredImageLane, ImageLane>>
-  /**
-   * Specialized version of `std::vector<std::variant<PreferredImageLane, ImageLane>>`.
-   */
-  using std__vector_std__variant_PreferredImageLane__ImageLane__ = std::vector<std::variant<PreferredImageLane, ImageLane>>;
-  inline std::vector<std::variant<PreferredImageLane, ImageLane>> create_std__vector_std__variant_PreferredImageLane__ImageLane__(size_t size) noexcept {
-    std::vector<std::variant<PreferredImageLane, ImageLane>> vector;
-    vector.reserve(size);
-    return vector;
-  }
-  
-  // pragma MARK: std::optional<LaneGuidance>
-  /**
-   * Specialized version of `std::optional<LaneGuidance>`.
-   */
-  using std__optional_LaneGuidance_ = std::optional<LaneGuidance>;
-  inline std::optional<LaneGuidance> create_std__optional_LaneGuidance_(const LaneGuidance& value) noexcept {
-    return std::optional<LaneGuidance>(value);
-  }
-  inline bool has_value_std__optional_LaneGuidance_(const std::optional<LaneGuidance>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline LaneGuidance get_std__optional_LaneGuidance_(const std::optional<LaneGuidance>& optional) noexcept {
-    return optional.value();
-  }
-  
-  // pragma MARK: std::optional<std::vector<std::string>>
-  /**
-   * Specialized version of `std::optional<std::vector<std::string>>`.
-   */
-  using std__optional_std__vector_std__string__ = std::optional<std::vector<std::string>>;
-  inline std::optional<std::vector<std::string>> create_std__optional_std__vector_std__string__(const std::vector<std::string>& value) noexcept {
-    return std::optional<std::vector<std::string>>(value);
-  }
-  inline bool has_value_std__optional_std__vector_std__string__(const std::optional<std::vector<std::string>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::vector<std::string> get_std__optional_std__vector_std__string__(const std::optional<std::vector<std::string>>& optional) noexcept {
-    return optional.value();
-  }
-  
-  // pragma MARK: std::vector<NitroRoutingManeuver>
-  /**
-   * Specialized version of `std::vector<NitroRoutingManeuver>`.
-   */
-  using std__vector_NitroRoutingManeuver_ = std::vector<NitroRoutingManeuver>;
-  inline std::vector<NitroRoutingManeuver> create_std__vector_NitroRoutingManeuver_(size_t size) noexcept {
-    std::vector<NitroRoutingManeuver> vector;
-    vector.reserve(size);
-    return vector;
-  }
-  
-  // pragma MARK: std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver>
-  /**
-   * Wrapper struct for `std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver>`.
-   * std::variant cannot be used in Swift because of a Swift bug.
-   * Not even specializing it works. So we create a wrapper struct.
-   */
-  struct std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_ final {
-    std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver> variant;
-    std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver> variant): variant(variant) { }
-    operator std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver>() const noexcept {
-      return variant;
-    }
-    inline size_t index() const noexcept {
-      return variant.index();
-    }
-    inline std::vector<NitroRoutingManeuver> get_0() const noexcept {
-      return std::get<0>(variant);
-    }
-    inline NitroMessageManeuver get_1() const noexcept {
-      return std::get<1>(variant);
-    }
-    inline NitroLoadingManeuver get_2() const noexcept {
-      return std::get<2>(variant);
-    }
-  };
-  inline std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_ create_std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(const std::vector<NitroRoutingManeuver>& value) noexcept {
-    return std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(value);
-  }
-  inline std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_ create_std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(const NitroMessageManeuver& value) noexcept {
-    return std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(value);
-  }
-  inline std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_ create_std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(const NitroLoadingManeuver& value) noexcept {
-    return std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(value);
-  }
-  
   // pragma MARK: std::shared_ptr<HybridClusterSpec>
   /**
    * Specialized version of `std::shared_ptr<HybridClusterSpec>`.
@@ -1146,6 +873,36 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay::bridge::swift {
     return optional.has_value();
   }
   inline std::function<void(std::optional<bool> /* animated */)> get_std__optional_std__function_void_std__optional_bool_____animated______(const std::optional<std::function<void(std::optional<bool> /* animated */)>>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::optional<std::function<void()>>
+  /**
+   * Specialized version of `std::optional<std::function<void()>>`.
+   */
+  using std__optional_std__function_void____ = std::optional<std::function<void()>>;
+  inline std::optional<std::function<void()>> create_std__optional_std__function_void____(const std::function<void()>& value) noexcept {
+    return std::optional<std::function<void()>>(value);
+  }
+  inline bool has_value_std__optional_std__function_void____(const std::optional<std::function<void()>>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline std::function<void()> get_std__optional_std__function_void____(const std::optional<std::function<void()>>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::optional<Distance>
+  /**
+   * Specialized version of `std::optional<Distance>`.
+   */
+  using std__optional_Distance_ = std::optional<Distance>;
+  inline std::optional<Distance> create_std__optional_Distance_(const Distance& value) noexcept {
+    return std::optional<Distance>(value);
+  }
+  inline bool has_value_std__optional_Distance_(const std::optional<Distance>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline Distance get_std__optional_Distance_(const std::optional<Distance>& optional) noexcept {
     return optional.value();
   }
   
@@ -1264,6 +1021,21 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay::bridge::swift {
   // pragma MARK: std::weak_ptr<HybridGridTemplateSpec>
   using std__weak_ptr_HybridGridTemplateSpec_ = std::weak_ptr<HybridGridTemplateSpec>;
   inline std__weak_ptr_HybridGridTemplateSpec_ weakify_std__shared_ptr_HybridGridTemplateSpec_(const std::shared_ptr<HybridGridTemplateSpec>& strong) noexcept { return strong; }
+  
+  // pragma MARK: std::optional<AutoText>
+  /**
+   * Specialized version of `std::optional<AutoText>`.
+   */
+  using std__optional_AutoText_ = std::optional<AutoText>;
+  inline std::optional<AutoText> create_std__optional_AutoText_(const AutoText& value) noexcept {
+    return std::optional<AutoText>(value);
+  }
+  inline bool has_value_std__optional_AutoText_(const std::optional<AutoText>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline AutoText get_std__optional_AutoText_(const std::optional<AutoText>& optional) noexcept {
+    return optional.value();
+  }
   
   // pragma MARK: std::optional<ListImageType>
   /**
@@ -1609,6 +1381,17 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay::bridge::swift {
     return optional.value();
   }
   
+  // pragma MARK: std::vector<TripPoint>
+  /**
+   * Specialized version of `std::vector<TripPoint>`.
+   */
+  using std__vector_TripPoint_ = std::vector<TripPoint>;
+  inline std::vector<TripPoint> create_std__vector_TripPoint_(size_t size) noexcept {
+    std::vector<TripPoint> vector;
+    vector.reserve(size);
+    return vector;
+  }
+  
   // pragma MARK: std::vector<RouteChoice>
   /**
    * Specialized version of `std::vector<RouteChoice>`.
@@ -1651,6 +1434,223 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay::bridge::swift {
   Func_void_std__string_std__string create_Func_void_std__string_std__string(void* NON_NULL swiftClosureWrapper) noexcept;
   inline Func_void_std__string_std__string_Wrapper wrap_Func_void_std__string_std__string(Func_void_std__string_std__string value) noexcept {
     return Func_void_std__string_std__string_Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::optional<TurnType>
+  /**
+   * Specialized version of `std::optional<TurnType>`.
+   */
+  using std__optional_TurnType_ = std::optional<TurnType>;
+  inline std::optional<TurnType> create_std__optional_TurnType_(const TurnType& value) noexcept {
+    return std::optional<TurnType>(value);
+  }
+  inline bool has_value_std__optional_TurnType_(const std::optional<TurnType>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline TurnType get_std__optional_TurnType_(const std::optional<TurnType>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::vector<double>
+  /**
+   * Specialized version of `std::vector<double>`.
+   */
+  using std__vector_double_ = std::vector<double>;
+  inline std::vector<double> create_std__vector_double_(size_t size) noexcept {
+    std::vector<double> vector;
+    vector.reserve(size);
+    return vector;
+  }
+  
+  // pragma MARK: std::optional<std::vector<double>>
+  /**
+   * Specialized version of `std::optional<std::vector<double>>`.
+   */
+  using std__optional_std__vector_double__ = std::optional<std::vector<double>>;
+  inline std::optional<std::vector<double>> create_std__optional_std__vector_double__(const std::vector<double>& value) noexcept {
+    return std::optional<std::vector<double>>(value);
+  }
+  inline bool has_value_std__optional_std__vector_double__(const std::optional<std::vector<double>>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline std::vector<double> get_std__optional_std__vector_double__(const std::optional<std::vector<double>>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::optional<OffRampType>
+  /**
+   * Specialized version of `std::optional<OffRampType>`.
+   */
+  using std__optional_OffRampType_ = std::optional<OffRampType>;
+  inline std::optional<OffRampType> create_std__optional_OffRampType_(const OffRampType& value) noexcept {
+    return std::optional<OffRampType>(value);
+  }
+  inline bool has_value_std__optional_OffRampType_(const std::optional<OffRampType>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline OffRampType get_std__optional_OffRampType_(const std::optional<OffRampType>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::optional<OnRampType>
+  /**
+   * Specialized version of `std::optional<OnRampType>`.
+   */
+  using std__optional_OnRampType_ = std::optional<OnRampType>;
+  inline std::optional<OnRampType> create_std__optional_OnRampType_(const OnRampType& value) noexcept {
+    return std::optional<OnRampType>(value);
+  }
+  inline bool has_value_std__optional_OnRampType_(const std::optional<OnRampType>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline OnRampType get_std__optional_OnRampType_(const std::optional<OnRampType>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::optional<ForkType>
+  /**
+   * Specialized version of `std::optional<ForkType>`.
+   */
+  using std__optional_ForkType_ = std::optional<ForkType>;
+  inline std::optional<ForkType> create_std__optional_ForkType_(const ForkType& value) noexcept {
+    return std::optional<ForkType>(value);
+  }
+  inline bool has_value_std__optional_ForkType_(const std::optional<ForkType>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline ForkType get_std__optional_ForkType_(const std::optional<ForkType>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::optional<KeepType>
+  /**
+   * Specialized version of `std::optional<KeepType>`.
+   */
+  using std__optional_KeepType_ = std::optional<KeepType>;
+  inline std::optional<KeepType> create_std__optional_KeepType_(const KeepType& value) noexcept {
+    return std::optional<KeepType>(value);
+  }
+  inline bool has_value_std__optional_KeepType_(const std::optional<KeepType>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline KeepType get_std__optional_KeepType_(const std::optional<KeepType>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::variant<PreferredImageLane, ImageLane>
+  /**
+   * Wrapper struct for `std::variant<PreferredImageLane, ImageLane>`.
+   * std::variant cannot be used in Swift because of a Swift bug.
+   * Not even specializing it works. So we create a wrapper struct.
+   */
+  struct std__variant_PreferredImageLane__ImageLane_ final {
+    std::variant<PreferredImageLane, ImageLane> variant;
+    std__variant_PreferredImageLane__ImageLane_(std::variant<PreferredImageLane, ImageLane> variant): variant(variant) { }
+    operator std::variant<PreferredImageLane, ImageLane>() const noexcept {
+      return variant;
+    }
+    inline size_t index() const noexcept {
+      return variant.index();
+    }
+    inline PreferredImageLane get_0() const noexcept {
+      return std::get<0>(variant);
+    }
+    inline ImageLane get_1() const noexcept {
+      return std::get<1>(variant);
+    }
+  };
+  inline std__variant_PreferredImageLane__ImageLane_ create_std__variant_PreferredImageLane__ImageLane_(const PreferredImageLane& value) noexcept {
+    return std__variant_PreferredImageLane__ImageLane_(value);
+  }
+  inline std__variant_PreferredImageLane__ImageLane_ create_std__variant_PreferredImageLane__ImageLane_(const ImageLane& value) noexcept {
+    return std__variant_PreferredImageLane__ImageLane_(value);
+  }
+  
+  // pragma MARK: std::vector<std::variant<PreferredImageLane, ImageLane>>
+  /**
+   * Specialized version of `std::vector<std::variant<PreferredImageLane, ImageLane>>`.
+   */
+  using std__vector_std__variant_PreferredImageLane__ImageLane__ = std::vector<std::variant<PreferredImageLane, ImageLane>>;
+  inline std::vector<std::variant<PreferredImageLane, ImageLane>> create_std__vector_std__variant_PreferredImageLane__ImageLane__(size_t size) noexcept {
+    std::vector<std::variant<PreferredImageLane, ImageLane>> vector;
+    vector.reserve(size);
+    return vector;
+  }
+  
+  // pragma MARK: std::optional<LaneGuidance>
+  /**
+   * Specialized version of `std::optional<LaneGuidance>`.
+   */
+  using std__optional_LaneGuidance_ = std::optional<LaneGuidance>;
+  inline std::optional<LaneGuidance> create_std__optional_LaneGuidance_(const LaneGuidance& value) noexcept {
+    return std::optional<LaneGuidance>(value);
+  }
+  inline bool has_value_std__optional_LaneGuidance_(const std::optional<LaneGuidance>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline LaneGuidance get_std__optional_LaneGuidance_(const std::optional<LaneGuidance>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::optional<std::vector<std::string>>
+  /**
+   * Specialized version of `std::optional<std::vector<std::string>>`.
+   */
+  using std__optional_std__vector_std__string__ = std::optional<std::vector<std::string>>;
+  inline std::optional<std::vector<std::string>> create_std__optional_std__vector_std__string__(const std::vector<std::string>& value) noexcept {
+    return std::optional<std::vector<std::string>>(value);
+  }
+  inline bool has_value_std__optional_std__vector_std__string__(const std::optional<std::vector<std::string>>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline std::vector<std::string> get_std__optional_std__vector_std__string__(const std::optional<std::vector<std::string>>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::vector<NitroRoutingManeuver>
+  /**
+   * Specialized version of `std::vector<NitroRoutingManeuver>`.
+   */
+  using std__vector_NitroRoutingManeuver_ = std::vector<NitroRoutingManeuver>;
+  inline std::vector<NitroRoutingManeuver> create_std__vector_NitroRoutingManeuver_(size_t size) noexcept {
+    std::vector<NitroRoutingManeuver> vector;
+    vector.reserve(size);
+    return vector;
+  }
+  
+  // pragma MARK: std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver>
+  /**
+   * Wrapper struct for `std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver>`.
+   * std::variant cannot be used in Swift because of a Swift bug.
+   * Not even specializing it works. So we create a wrapper struct.
+   */
+  struct std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_ final {
+    std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver> variant;
+    std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver> variant): variant(variant) { }
+    operator std::variant<std::vector<NitroRoutingManeuver>, NitroMessageManeuver, NitroLoadingManeuver>() const noexcept {
+      return variant;
+    }
+    inline size_t index() const noexcept {
+      return variant.index();
+    }
+    inline std::vector<NitroRoutingManeuver> get_0() const noexcept {
+      return std::get<0>(variant);
+    }
+    inline NitroMessageManeuver get_1() const noexcept {
+      return std::get<1>(variant);
+    }
+    inline NitroLoadingManeuver get_2() const noexcept {
+      return std::get<2>(variant);
+    }
+  };
+  inline std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_ create_std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(const std::vector<NitroRoutingManeuver>& value) noexcept {
+    return std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(value);
+  }
+  inline std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_ create_std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(const NitroMessageManeuver& value) noexcept {
+    return std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(value);
+  }
+  inline std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_ create_std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(const NitroLoadingManeuver& value) noexcept {
+    return std__variant_std__vector_NitroRoutingManeuver___NitroMessageManeuver__NitroLoadingManeuver_(value);
   }
   
   // pragma MARK: std::vector<NitroChargerOutlet>

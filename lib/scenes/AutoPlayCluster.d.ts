@@ -1,42 +1,18 @@
 import React from 'react';
 import type { ZoomEvent } from '../specs/Cluster.nitro';
-import { NavigationStopReason } from '../templates/MapTemplate';
-import type { AutoManeuver } from '../types/Maneuver';
 import type { ColorScheme, RootComponentInitialProps } from '../types/RootComponent';
-import type { TripConfig, TripPoint } from '../types/Trip';
 import type { AutoAttributedString } from '../utils/NitroAttributedString';
 declare class Cluster {
     private component;
     private attributedInactiveDescriptionVariants;
-    private connectionStateListeners;
     /**
      * Holds all cluster scene/session IDs and if they have a window/surface connected
      */
     private clusters;
     constructor();
-    private emitConnectionState;
     private registerComponent;
     private applyAttributedInactiveDescriptionVariants;
     setComponent(component: React.ComponentType<RootComponentInitialProps>): Promise<void>;
-    hasConnectedSessions(): boolean;
-    addConnectionStateListener(callback: (isConnected: boolean) => void): () => void;
-    /**
-     * Registers callbacks used by Android when a cluster session is the only
-     * active car session.
-     * @namespace Android
-     */
-    setNavigationCallbacks({ onStopNavigation, onAutoDriveEnabled, }: {
-        onStopNavigation: () => void;
-        onAutoDriveEnabled?: () => void;
-    }): void;
-    /** @namespace Android */
-    startNavigation(trip: TripConfig): void;
-    /** @namespace Android */
-    updateTravelEstimates(steps: Array<TripPoint>): void;
-    /** @namespace Android */
-    updateManeuvers(maneuvers: AutoManeuver): void;
-    /** @namespace Android */
-    stopNavigation(reason?: NavigationStopReason): void;
     /**
      * sets the text that is shown while no navigation is ongoing
      * applies specified strings to all connected cluster of content type "Instruction Card"

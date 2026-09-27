@@ -74,7 +74,6 @@ class TripPreviewTemplate(
                     setTitle(
                         "${textConfig.travelEstimatesTitle} ${
                             Parser.formatToTimestamp(
-                                carContext,
                                 selectedRoute.steps.last().travelEstimates.timeRemaining
                             )
                         }"

@@ -308,12 +308,6 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
         std::rethrow_exception(__result.error());
       }
     }
-    inline void registerManeuvers(const std::string& templateId, const std::vector<NitroRoutingManeuver>& maneuvers) override {
-      auto __result = _swiftPart.registerManeuvers(templateId, maneuvers);
-      if (__result.hasError()) [[unlikely]] {
-        std::rethrow_exception(__result.error());
-      }
-    }
     inline std::shared_ptr<Promise<void>> startNavigation(const std::string& templateId, const TripConfig& trip) override {
       auto __result = _swiftPart.startNavigation(templateId, std::forward<decltype(trip)>(trip));
       if (__result.hasError()) [[unlikely]] {

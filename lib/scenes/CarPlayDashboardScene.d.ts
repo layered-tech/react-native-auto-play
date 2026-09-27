@@ -21,7 +21,7 @@ declare class Dashboard {
      * otherwise the dashboard will not show up!
      * @namespace iOS
      */
-    setButtons(buttons: Array<CarPlayDashboardButton>): Promise<void>;
+    setButtons(buttons: Array<CarPlayDashboardButton>): void;
     /**
      * attach a listener for generic notifications like didConnect, didDisconnect, ...
      * @namespace iOS

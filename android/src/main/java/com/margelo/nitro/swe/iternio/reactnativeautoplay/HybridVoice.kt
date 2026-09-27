@@ -11,7 +11,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
 class HybridVoice : HybridVoiceSpec() {
-    private val voiceInputManagerLock = Any()
+    @Volatile
     private var voiceInputManager: VoiceInputManager? = null
 
     override fun hasVoiceInputPermission(): Boolean {
@@ -79,8 +79,7 @@ class HybridVoice : HybridVoiceSpec() {
             }
 
             val manager = VoiceInputManager(AndroidAutoSession.getRootContext())
-            val previousManager = swapVoiceInputManager(manager)
-            previousManager?.stop()
+            voiceInputManager = manager
 
             try {
                 manager.start(
@@ -94,29 +93,13 @@ class HybridVoice : HybridVoiceSpec() {
                     encoding = encoding ?: VoiceAudioEncoding.LINEAR16,
                 )
             } finally {
-                clearVoiceInputManager(ifCurrent = manager)
+                voiceInputManager = null
                 manager.dispose()
             }
         }
     }
 
     override fun stopVoiceInput() {
-        swapVoiceInputManager(null)?.stop()
-    }
-
-    private fun swapVoiceInputManager(manager: VoiceInputManager?): VoiceInputManager? {
-        return synchronized(voiceInputManagerLock) {
-            val previousManager = voiceInputManager
-            voiceInputManager = manager
-            previousManager
-        }
-    }
-
-    private fun clearVoiceInputManager(ifCurrent: VoiceInputManager) {
-        synchronized(voiceInputManagerLock) {
-            if (voiceInputManager === ifCurrent) {
-                voiceInputManager = null
-            }
-        }
+        voiceInputManager?.stop()
     }
 }

@@ -1,7 +1,6 @@
 package com.margelo.nitro.swe.iternio.reactnativeautoplay
 
 import androidx.car.app.AppManager
-import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.ThreadUtil
 import com.facebook.react.bridge.UiThreadUtil
 import com.margelo.nitro.core.Promise
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.AndroidAutoTemplate
@@ -133,47 +132,29 @@ class HybridMapTemplate : HybridMapTemplateSpec() {
         templateId: String, visibleTravelEstimate: VisibleTravelEstimate
     ) {
         val template = AndroidAutoTemplate.getTemplate<MapTemplate>(templateId)
-        UiThreadUtil.runOnUiThread {
-            template.updateVisibleTravelEstimate(visibleTravelEstimate)
-        }
+        template.updateVisibleTravelEstimate(visibleTravelEstimate)
     }
 
     override fun updateTravelEstimates(templateId: String, steps: Array<TripPoint>) {
-        UiThreadUtil.runOnUiThread {
-            MapTemplate.updateTravelEstimates(steps)
-        }
+        MapTemplate.updateTravelEstimates(steps)
     }
 
     override fun updateManeuvers(
         templateId: String, maneuvers: NitroManeuver
     ) {
-        UiThreadUtil.runOnUiThread {
-            MapTemplate.updateManeuvers(maneuvers)
-        }
-    }
-
-    override fun registerManeuvers(
-        templateId: String, maneuvers: Array<NitroRoutingManeuver>
-    ) {
-        // Android Auto receives the current and next maneuver through updateManeuvers.
+        MapTemplate.updateManeuvers(maneuvers)
     }
 
     override fun startNavigation(
         templateId: String, trip: TripConfig
     ): Promise<Unit> {
         return Promise.async {
-            ThreadUtil.postOnUiAndAwait {
-                MapTemplate.startNavigation(trip)
-            }.getOrThrow()
+            MapTemplate.startNavigation(trip)
         }
     }
 
-    override fun stopNavigation(
-        templateId: String, reason: NavigationStopReason
-    ) {
-        UiThreadUtil.runOnUiThread {
-            MapTemplate.stopNavigation()
-        }
+    override fun stopNavigation(templateId: String, reason: NavigationStopReason) {
+        MapTemplate.stopNavigation()
     }
 
     override fun setManeuverState(templateId: String, state: ManeuverState) {

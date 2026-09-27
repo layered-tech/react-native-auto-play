@@ -77,10 +77,6 @@ abstract class HybridMapTemplateSpec: HybridObject() {
   
   @DoNotStrip
   @Keep
-  abstract fun registerManeuvers(templateId: String, maneuvers: Array<NitroRoutingManeuver>): Unit
-  
-  @DoNotStrip
-  @Keep
   abstract fun startNavigation(templateId: String, trip: TripConfig): Promise<Unit>
   
   @DoNotStrip

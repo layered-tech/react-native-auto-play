@@ -199,19 +199,6 @@ class HybridCluster: HybridClusterSpec {
         }
     }
 
-    func setNavigationCallbacks(
-        onStopNavigation: @escaping () -> Void,
-        onAutoDriveEnabled: (() -> Void)?
-    ) throws {}
-
-    func startNavigation(trip: TripConfig) throws {}
-
-    func updateTravelEstimates(steps: [TripPoint]) throws {}
-
-    func updateManeuvers(maneuvers: NitroManeuver) throws {}
-
-    func stopNavigation(reason: NavigationStopReason) throws {}
-
     static func emit(event: ClusterEventName, clusterId: String) {
         // Snapshot under the lock, then call out without holding it so a
         // callback that adds or removes a listener cannot deadlock.

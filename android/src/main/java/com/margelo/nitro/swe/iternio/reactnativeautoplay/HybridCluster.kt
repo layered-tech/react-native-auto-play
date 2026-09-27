@@ -1,8 +1,6 @@
 package com.margelo.nitro.swe.iternio.reactnativeautoplay
 
-import com.facebook.react.bridge.UiThreadUtil
 import com.margelo.nitro.core.Promise
-import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.MapTemplate
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.ThreadUtil
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -11,9 +9,6 @@ class HybridCluster : HybridClusterSpec() {
     init {
         listeners.clear()
         colorSchemeListeners.clear()
-        UiThreadUtil.runOnUiThread {
-            MapTemplate.clearClusterNavigationCallbacks()
-        }
     }
 
     override fun addListener(
@@ -22,15 +17,7 @@ class HybridCluster : HybridClusterSpec() {
         val callbacks = listeners.getOrPut(eventType) { CopyOnWriteArrayList() }
         callbacks.add(callback)
 
-        val queuedClusterIds: Array<String> = eventQueue[eventType] ?: emptyArray()
-        val connectedClusterIds: Array<String> =
-            if (eventType == ClusterEventName.DIDCONNECTWITHWINDOW) {
-                AndroidAutoSession.getClusterSessions()
-            } else {
-                emptyArray()
-            }
-
-        (queuedClusterIds + connectedClusterIds).distinct().forEach {
+        eventQueue[eventType]?.forEach {
             callback(it)
         }
         eventQueue[eventType] = emptyArray<String>()
@@ -81,42 +68,6 @@ class HybridCluster : HybridClusterSpec() {
 
     override fun addListenerSpeedLimit(callback: (String, Boolean) -> Unit): () -> Unit {
         throw IllegalAccessException("addListenerSpeedLimit is supported on iOS only")
-    }
-
-    override fun setNavigationCallbacks(
-        onStopNavigation: () -> Unit,
-        onAutoDriveEnabled: (() -> Unit)?
-    ) {
-        UiThreadUtil.runOnUiThread {
-            MapTemplate.setClusterNavigationCallbacks(
-                onStopNavigation,
-                onAutoDriveEnabled
-            )
-        }
-    }
-
-    override fun startNavigation(trip: TripConfig) {
-        UiThreadUtil.runOnUiThread {
-            MapTemplate.startNavigation(trip)
-        }
-    }
-
-    override fun updateTravelEstimates(steps: Array<TripPoint>) {
-        UiThreadUtil.runOnUiThread {
-            MapTemplate.updateTravelEstimates(steps)
-        }
-    }
-
-    override fun updateManeuvers(maneuvers: NitroManeuver) {
-        UiThreadUtil.runOnUiThread {
-            MapTemplate.updateManeuvers(maneuvers)
-        }
-    }
-
-    override fun stopNavigation(reason: NavigationStopReason) {
-        UiThreadUtil.runOnUiThread {
-            MapTemplate.stopNavigation()
-        }
     }
 
     companion object {

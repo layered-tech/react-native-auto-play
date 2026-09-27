@@ -46,9 +46,7 @@ class Dashboard {
             this.componentRegistered = true;
         }
         if (isConnected) {
-            HybridCarPlayDashboard.initRootView().catch((error) => {
-                console.warn('CarPlayDashboard.initRootView failed', error);
-            });
+            HybridCarPlayDashboard.initRootView();
         }
     }
     setComponent(component) {
@@ -70,9 +68,9 @@ class Dashboard {
     setButtons(buttons) {
         if (HybridCarPlayDashboard == null) {
             console.warn(`CarPlayDashboard.setButtons is not supported on ${react_native_1.Platform.OS}`);
-            return Promise.resolve();
+            return;
         }
-        return HybridCarPlayDashboard.setButtons(buttons.map((button) => ({ ...button, image: NitroImage_1.NitroImageUtil.convert(button.image) })));
+        HybridCarPlayDashboard.setButtons(buttons.map((button) => ({ ...button, image: NitroImage_1.NitroImageUtil.convert(button.image) })));
     }
     /**
      * attach a listener for generic notifications like didConnect, didDisconnect, ...
