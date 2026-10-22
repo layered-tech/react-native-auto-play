@@ -202,19 +202,20 @@ object Parser {
         }
         return ActionStrip.Builder().apply {
             buttons.forEach { button ->
+                val buttonFlags = (button.flags?.toInt() ?: 0) or flags
                 if (button.type == NitroMapButtonType.PAN) {
                     addAction(
                         Action.Builder(Action.PAN).setIcon(
                             parseImage(
                                 context, button.image
                             )
-                        ).setFlags(flags).build()
+                        ).setFlags(buttonFlags).build()
                     )
                     return@forEach
                 }
 
                 addAction(Action.Builder().apply {
-                    setFlags(flags)
+                    setFlags(buttonFlags)
                     button.onPress?.let {
                         setOnClickListener(it)
                     }

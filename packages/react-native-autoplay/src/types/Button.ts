@@ -1,6 +1,11 @@
 import type { AutoImage } from './Image';
 
 export type MapButton<T = unknown> = {
+  /**
+   * flags are combined with `hideControls`; use `Flag.Persistent` to keep this button visible
+   * @namespace Android - ignored on iOS
+   */
+  flags?: Flags | 0;
   type: 'custom';
   image: AutoImage;
   onPress: (template: T) => void;
@@ -14,6 +19,11 @@ export type ButtonStyle = 'normal' | 'confirm' | 'cancel';
  * @namespace iOS - this button will always be shown, no matter if the device has a touch screen or not
  */
 export type MapPanButton = {
+  /**
+   * flags are combined with `hideControls`; use `Flag.Persistent` to keep this button visible
+   * @namespace Android - ignored on iOS
+   */
+  flags?: Flags | 0;
   type: 'pan';
   image: AutoImage;
 };

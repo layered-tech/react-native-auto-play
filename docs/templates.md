@@ -85,8 +85,11 @@ Stack operations not tied to a single template live on `HybridAutoPlay`: `popTem
   lifecycle captured at creation). Only host-initiated stops reach JS.
 - `hideControls` is applied natively:
   - Android: `Parser.parseMapActions` / `parseMapHeaderActions` add `FLAG_IS_PERSISTENT`
-    (Car API 5+). Map-content and trip/route preview templates read the root map's setting
-    through `Parser.getRootMapTemplateConfig()`, so every caller has to pass it.
+    (Car API 5+) and combine it with per-action `flags` on header actions and map buttons,
+    including pan buttons. With `hideControls: 'all'`, selected map buttons can stay persistent
+    while others hide; `0` or omitted flags do not override the group's persistence. Map-content
+    and trip/route preview templates read the root map's setting through
+    `Parser.getRootMapTemplateConfig()`, so every caller has to pass it.
   - iOS: `MapTemplate.applyHideControls()` sets the two `CPMapTemplate` properties. The panel
     delegate and `showTripSelector` turn auto-hide off while a panel or the trip selector is
     shown, and `_invalidate` restores the mode.

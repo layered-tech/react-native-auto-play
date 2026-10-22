@@ -813,8 +813,22 @@ const mapTemplate = new MapTemplate({ component: MapScreen, onStopNavigation, hi
 mapTemplate.setHideControls('none');
 ```
 
-- **Android:** applied with `Action.FLAG_IS_PERSISTENT` on every affected action, which requires Car API 5 — older hosts keep hiding all controls. A per-action `flags` value on a header action is kept and combined with it. The root's setting also applies to templates shown with `mapConfig` and to the trip selector's map buttons; a change made while one of those is shown applies the next time it updates. `Persistent` does not make a pan button appear on hosts that normally leave it out.
+- **Android:** applied with `Action.FLAG_IS_PERSISTENT` on every affected action, which requires Car API 5 — older hosts keep hiding all controls. A per-action `flags` value on a header action or map button (including pan buttons) is kept and combined with it. The root's setting also applies to templates shown with `mapConfig` and to the trip selector's map buttons; a change made while one of those is shown applies the next time it updates. `Persistent` does not make a pan button appear on hosts that normally leave it out.
 - **iOS:** maps to `CPMapTemplate.automaticallyHidesNavigationBar` / `hidesButtonsWithNavigationBar`. While a template with `mapConfig` is shown (iOS 27+) or the trip selector is open, all controls stay visible so the panel doesn't move under the user's finger; the setting is restored when it closes.
+
+For mixed map-button visibility on Android, use `hideControls: 'all'` (the default) and add `Flag.Persistent` only to the buttons that should stay visible:
+
+```ts
+import { Flag } from '@iternio/react-native-auto-play';
+
+mapTemplate.setMapButtons([
+  { type: 'custom', image: zoomInImage, onPress: zoomIn },
+  { type: 'custom', image: zoomOutImage, onPress: zoomOut },
+  { type: 'custom', image: recenterImage, onPress: recenter, flags: Flag.Persistent },
+]);
+```
+
+The same flags work on initial map buttons, `setMapButtons()`, templates with `mapConfig`, and trip-preview buttons. Flags can be bitwise combined, like header-action flags. Omitting `flags` or using `0` adds no persistence; it does not override `'header'` or `'none'`, which keep every map button visible. CarPlay ignores individual flags and continues to use `hideControls` for the whole group.
 
 ### Header Actions (Important)
 
