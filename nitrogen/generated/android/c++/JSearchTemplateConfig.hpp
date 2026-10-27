@@ -94,6 +94,8 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
       jni::local_ref<JAutoText> title = this->getFieldValue(fieldTitle);
       static const auto fieldResults = clazz->getField<JNitroSection>("results");
       jni::local_ref<JNitroSection> results = this->getFieldValue(fieldResults);
+      static const auto fieldHandlesSubmittedResults = clazz->getField<jni::JBoolean>("handlesSubmittedResults");
+      jni::local_ref<jni::JBoolean> handlesSubmittedResults = this->getFieldValue(fieldHandlesSubmittedResults);
       static const auto fieldInitialSearchText = clazz->getField<jni::JString>("initialSearchText");
       jni::local_ref<jni::JString> initialSearchText = this->getFieldValue(fieldInitialSearchText);
       static const auto fieldSearchHint = clazz->getField<jni::JString>("searchHint");
@@ -162,6 +164,7 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
         }(headerActions)) : std::nullopt,
         title->toCpp(),
         results->toCpp(),
+        handlesSubmittedResults != nullptr ? std::make_optional(static_cast<bool>(handlesSubmittedResults->value())) : std::nullopt,
         initialSearchText != nullptr ? std::make_optional(initialSearchText->toStdString()) : std::nullopt,
         searchHint != nullptr ? std::make_optional(searchHint->toStdString()) : std::nullopt,
         [&]() -> std::function<void(const std::string& /* searchText */)> {
@@ -191,7 +194,7 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
      */
     [[maybe_unused]]
     static jni::local_ref<JSearchTemplateConfig::javaobject> fromCpp(const SearchTemplateConfig& value) {
-      using JSignature = JSearchTemplateConfig(jni::alias_ref<jni::JString>, jni::alias_ref<JFunc_void_std__optional_bool_::javaobject>, jni::alias_ref<JFunc_void_std__optional_bool_::javaobject>, jni::alias_ref<JFunc_void_std__optional_bool_::javaobject>, jni::alias_ref<JFunc_void_std__optional_bool_::javaobject>, jni::alias_ref<JFunc_void::javaobject>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JArrayClass<JNitroAction>>, jni::alias_ref<JAutoText>, jni::alias_ref<JNitroSection>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<JFunc_void_std__string::javaobject>, jni::alias_ref<JFunc_void_std__string::javaobject>);
+      using JSignature = JSearchTemplateConfig(jni::alias_ref<jni::JString>, jni::alias_ref<JFunc_void_std__optional_bool_::javaobject>, jni::alias_ref<JFunc_void_std__optional_bool_::javaobject>, jni::alias_ref<JFunc_void_std__optional_bool_::javaobject>, jni::alias_ref<JFunc_void_std__optional_bool_::javaobject>, jni::alias_ref<JFunc_void::javaobject>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JArrayClass<JNitroAction>>, jni::alias_ref<JAutoText>, jni::alias_ref<JNitroSection>, jni::alias_ref<jni::JBoolean>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<JFunc_void_std__string::javaobject>, jni::alias_ref<JFunc_void_std__string::javaobject>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
@@ -215,6 +218,7 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
         }(value.headerActions.value()) : nullptr,
         JAutoText::fromCpp(value.title),
         JNitroSection::fromCpp(value.results),
+        value.handlesSubmittedResults.has_value() ? jni::JBoolean::valueOf(value.handlesSubmittedResults.value()) : nullptr,
         value.initialSearchText.has_value() ? jni::make_jstring(value.initialSearchText.value()) : nullptr,
         value.searchHint.has_value() ? jni::make_jstring(value.searchHint.value()) : nullptr,
         JFunc_void_std__string_cxx::fromCpp(value.onSearchTextChanged),

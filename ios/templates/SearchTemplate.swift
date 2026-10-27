@@ -126,6 +126,11 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
         _ searchTemplate: CPSearchTemplate
     ) {
 
+        if config.handlesSubmittedResults == true {
+            config.onSearchTextSubmitted(searchText)
+            return
+        }
+
         // Create a new ListTemplate with the search results
         let listConfig = ListTemplateConfig(
             id: "\(config.id)-results",
