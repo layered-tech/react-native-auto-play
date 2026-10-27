@@ -18,7 +18,7 @@ public extension SearchTemplateConfig {
   /**
    * Create a new instance of `SearchTemplateConfig`.
    */
-  init(id: String, onWillAppear: ((_ animated: Bool?) -> Void)?, onWillDisappear: ((_ animated: Bool?) -> Void)?, onDidAppear: ((_ animated: Bool?) -> Void)?, onDidDisappear: ((_ animated: Bool?) -> Void)?, onPopped: (() -> Void)?, autoDismissMs: Double?, headerActions: [NitroAction]?, title: AutoText, results: NitroSection, initialSearchText: String?, searchHint: String?, onSearchTextChanged: @escaping (_ searchText: String) -> Void, onSearchTextSubmitted: @escaping (_ searchText: String) -> Void) {
+  init(id: String, onWillAppear: ((_ animated: Bool?) -> Void)?, onWillDisappear: ((_ animated: Bool?) -> Void)?, onDidAppear: ((_ animated: Bool?) -> Void)?, onDidDisappear: ((_ animated: Bool?) -> Void)?, onPopped: (() -> Void)?, autoDismissMs: Double?, headerActions: [NitroAction]?, title: AutoText, results: NitroSection, handlesSubmittedResults: Bool?, initialSearchText: String?, searchHint: String?, onSearchTextChanged: @escaping (_ searchText: String) -> Void, onSearchTextSubmitted: @escaping (_ searchText: String) -> Void) {
     self.init(std.string(id), { () -> bridge.std__optional_std__function_void_std__optional_bool_____animated______ in
       if let __unwrappedValue = onWillAppear {
         return bridge.create_std__optional_std__function_void_std__optional_bool_____animated______({ () -> bridge.Func_void_std__optional_bool_ in
@@ -82,7 +82,13 @@ public extension SearchTemplateConfig {
       } else {
         return .init()
       }
-    }(), title, results, { () -> bridge.std__optional_std__string_ in
+    }(), title, results, { () -> bridge.std__optional_bool_ in
+      if let __unwrappedValue = handlesSubmittedResults {
+        return bridge.create_std__optional_bool_(__unwrappedValue)
+      } else {
+        return .init()
+      }
+    }(), { () -> bridge.std__optional_std__string_ in
       if let __unwrappedValue = initialSearchText {
         return bridge.create_std__optional_std__string_(std.string(__unwrappedValue))
       } else {
@@ -249,6 +255,18 @@ public extension SearchTemplateConfig {
   @inline(__always)
   var results: NitroSection {
     return self.__results
+  }
+  
+  @inline(__always)
+  var handlesSubmittedResults: Bool? {
+    return { () -> Bool? in
+      if bridge.has_value_std__optional_bool_(self.__handlesSubmittedResults) {
+        let __unwrapped = bridge.get_std__optional_bool_(self.__handlesSubmittedResults)
+        return __unwrapped
+      } else {
+        return nil
+      }
+    }()
   }
   
   @inline(__always)

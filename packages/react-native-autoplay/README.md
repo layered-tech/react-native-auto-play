@@ -729,12 +729,23 @@ In the `CPListTemplate`, a grid section's `title` is shown as the section header
 | Prop | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `title` | `AutoText` | ✅ | Header title. |
-| `results` | `SearchSection<SearchTemplate>` | ❌ | Initial results. |
+| `results` | `SearchSection<SearchTemplate>` | ❌ | Initial autocomplete results. |
+| `mapConfig` | `MapConfig<SearchTemplate>` | ❌ | Submit into a package-owned results list over the root map; autocomplete stays in the search UI. Requires Car API 7 / iOS 27 for the map; older hosts show a regular list. |
 | `headerActions` | `HeaderActions<SearchTemplate>` | ❌ | Header actions. See **Header Actions** below. |
 | `searchHint` | `string` | ❌ | Android-only placeholder. |
 | `initialSearchText` | `string` | ❌ | Android-only initial value. |
 | `onSearchTextChanged` | `(text) => void` | ✅ | Fired on text input changes. |
 | `onSearchTextSubmitted` | `(text) => void` | ✅ | Fired on submit. |
+
+With `mapConfig` set, pressing Search starts your `onSearchTextSubmitted` callback immediately and
+presents a map-backed `ListTemplate` without CarPlay's intermediate full-screen results list.
+Continue calling `searchTemplate.updateSearchResults(...)` for both autocomplete and submitted
+results; the package forwards updates to the current results screen. Selecting an autocomplete row
+runs its existing handler directly. The app supplies its map and pins, as with other map content.
+The results panel inherits the search header actions, so provide a Back action or
+`mapConfig.ios.showCloseButton` to dismiss it. `onPopped` runs when the results are closed, not
+when the keyboard is removed during the transition. `popTo()` targets the submitted results once
+shown. Without `mapConfig`, existing native search behavior is unchanged.
 
 #### InformationTemplateConfig
 
