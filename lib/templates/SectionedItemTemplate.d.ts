@@ -13,6 +13,7 @@ export type SectionedItemListSection<T> = {
     title: string;
     items: Array<DefaultRow<T> | ToggleRow<T> | TextRow>;
 };
+export type GridSectionImageSize = 'small' | 'large';
 /**
  * @namespace Android - a GridSection, below Car API 8 one row per button
  * @namespace iOS - grid buttons on a panel, otherwise a CPListImageRowItem. Below iOS 26 at most
@@ -22,11 +23,22 @@ export type SectionedItemGridSection<T> = {
     type: 'grid';
     title: string;
     buttons: Array<GridButton<T>>;
+    /**
+     * size of the button images, defaults to `small`. `large` is meant for photos:
+     * @namespace Android - large grid items (`GridSection.ITEM_SIZE_LARGE`). Where the buttons fall
+     * back to rows (below Car API 8, or with `mapConfig` and more than one section) the rows get large
+     * images (`Row.IMAGE_TYPE_LARGE`). A single grid section with `mapConfig` is a `GridTemplate` and
+     * stays unchanged.
+     * @namespace iOS - photo tiles with the title below (row elements) on iOS 26+, unchanged below
+     * iOS 26 and on panels
+     */
+    imageSize?: GridSectionImageSize;
 };
 export type SectionedItemSection<T> = SectionedItemListSection<T> | SectionedItemGridSection<T>;
 export type NitroGridSection = {
     title?: string;
     buttons: Array<NitroGridButton>;
+    imageSize?: GridSectionImageSize;
 };
 export type NitroSectionedItemSection = NitroSection | NitroGridSection;
 export interface NitroSectionedItemTemplateConfig extends TemplateConfig {

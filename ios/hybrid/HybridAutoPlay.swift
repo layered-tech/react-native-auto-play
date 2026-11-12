@@ -4,7 +4,7 @@ import NitroModules
 
 struct StateListener {
     let id: UUID
-    let callback: () -> Void
+    let callback: (Double) -> Void
 }
 
 struct RenderStateListener {
@@ -41,17 +41,18 @@ class HybridAutoPlay: HybridAutoPlaySpec {
         super.init()
     }
 
-    func addListener(eventType: EventName, callback: @escaping () -> Void)
-        throws -> () -> Void
-    {
+    func addListener(
+        eventType: EventName,
+        callback: @escaping (_ sessionId: Double) -> Void
+    ) throws -> () -> Void {
         let listener = StateListener(id: UUID(), callback: callback)
 
         HybridAutoPlay.withListenersLock {
             HybridAutoPlay.listeners[eventType, default: []].append(listener)
         }
 
-        if eventType == .didconnect && SceneStore.isRootModuleConnected() {
-            callback()
+        if eventType == .didconnect, let sessionId = SceneStore.getRootSessionId() {
+            callback(Double(sessionId))
         }
 
         return {
@@ -102,6 +103,10 @@ class HybridAutoPlay: HybridAutoPlaySpec {
         return SceneStore.isRootModuleConnected()
     }
 
+    func getCurrentSessionId() throws -> Double? {
+        return SceneStore.getRootSessionId().map { Double($0) }
+    }
+
     func isCarServiceRunning() throws -> Bool {
         return SceneStore.isRootModuleConnected()
     }
@@ -149,9 +154,16 @@ class HybridAutoPlay: HybridAutoPlaySpec {
         return {}
     }
 
+    func addListenerCarLocation(
+        callback: @escaping (CarLocation) -> Void
+    ) throws -> () -> Void {
+        // CarPlay exposes no head unit location, the phone's location is the only source.
+        return {}
+    }
+
     // MARK: set/push/pop templates
     func setRootTemplate(templateId: String) throws -> Promise<Void> {
-        return Promise.async {
+        return TemplateUpdateQueue.enqueue {
             try await RootModule.withSceneAndInterfaceController {
                 scene,
                 interfaceController in
@@ -181,7 +193,7 @@ class HybridAutoPlay: HybridAutoPlaySpec {
     func pushTemplate(templateId: String) throws
         -> Promise<Void>
     {
-        return Promise.async {
+        return TemplateUpdateQueue.enqueue {
             try await RootModule.withSceneAndInterfaceController {
                 scene,
                 interfaceController in
@@ -245,7 +257,7 @@ class HybridAutoPlay: HybridAutoPlaySpec {
     }
 
     func popTemplate(animate: Bool?) throws -> Promise<Void> {
-        return Promise.async {
+        return TemplateUpdateQueue.enqueue {
             try await RootModule.withInterfaceController {
                 interfaceController in
 
@@ -266,7 +278,7 @@ class HybridAutoPlay: HybridAutoPlaySpec {
     }
 
     func popToRootTemplate(animate: Bool?) throws -> Promise<Void> {
-        return Promise.async {
+        return TemplateUpdateQueue.enqueue {
             try await RootModule.withInterfaceController {
                 interfaceController in
 
@@ -289,7 +301,7 @@ class HybridAutoPlay: HybridAutoPlaySpec {
     func popToTemplate(templateId: String, animate: Bool?) throws -> Promise<
         Void
     > {
-        return Promise.async {
+        return TemplateUpdateQueue.enqueue {
             try await RootModule.withInterfaceController {
                 interfaceController in
 
@@ -313,36 +325,34 @@ class HybridAutoPlay: HybridAutoPlaySpec {
         templateId: String,
         headerActions: [NitroAction]?
     ) throws -> Promise<Void> {
-        return Promise.async {
-            try await RootModule.withScene { rootScene in
-                try await MainActor.run {
-                    let template = try rootScene.templateStore.getTemplate(
-                        templateId: templateId
+        return TemplateUpdateQueue.enqueue {
+            try RootModule.withScene { rootScene in
+                let template = try rootScene.templateStore.getTemplate(
+                    templateId: templateId
+                )
+
+                guard let template = template as? AutoPlayHeaderProviding
+                else {
+                    throw AutoPlayError.invalidTemplateType(
+                        "\(templateId) does not support header actions"
                     )
-
-                    guard let template = template as? AutoPlayHeaderProviding
-                    else {
-                        throw AutoPlayError.invalidTemplateType(
-                            "\(templateId) does not support header actions"
-                        )
-                    }
-
-                    template.barButtons = headerActions
-                    template.invalidate()
                 }
+
+                template.barButtons = headerActions
+                template.invalidate()
             }
         }
     }
 
     // MARK: events
-    static func emit(event: EventName) {
+    static func emit(event: EventName, sessionId: Int) {
         // Snapshot under the lock, then call out without holding it so a
         // callback that adds or removes a listener cannot deadlock.
         let listeners = HybridAutoPlay.withListenersLock {
             HybridAutoPlay.listeners[event] ?? []
         }
         listeners.forEach { listener in
-            listener.callback()
+            listener.callback(Double(sessionId))
         }
     }
 

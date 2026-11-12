@@ -27,6 +27,7 @@ export type { NitroGridSection, NitroSectionedItemSection, SectionedItemGridSect
 export type { SignInTemplateConfig } from './templates/SignInTemplate';
 export type { ActionButton, HeaderActions, HeaderActionsAndroid, HeaderActionsIos, NitroBaseMapTemplateConfig, NitroPanelTemplatePlatformConfig, NitroTemplateConfig, TemplateConfig, } from './templates/Template';
 export * from './types/Button';
+export * from './types/CarLocation';
 export * from './types/Event';
 export * from './types/Image';
 export * from './types/Maneuver';
@@ -47,7 +48,7 @@ export declare enum AutoPlayModules {
 }
 export declare const useSafeAreaInsets: () => SafeAreaInsets;
 export declare const SafeAreaView: (props: ViewProps) => import("react").FunctionComponentElement<Omit<ViewProps, "ref"> & {
-    ref?: React.Ref<import("react-native").ViewInstance> | undefined;
+    ref?: import("react").Ref<import("react-native").ViewInstance> | undefined;
 }>;
 export declare function setIconFont(_name: string, _glyphMap?: Record<string, number>): void;
 export declare const useFocusedEffect: () => void;

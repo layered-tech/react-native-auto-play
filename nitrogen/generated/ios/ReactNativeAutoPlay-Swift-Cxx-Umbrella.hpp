@@ -16,6 +16,10 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class AlertDi
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct AssetImage; }
 // Forward declaration of `AutoText` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct AutoText; }
+// Forward declaration of `CarLocationStatus` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class CarLocationStatus; }
+// Forward declaration of `CarLocation` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct CarLocation; }
 // Forward declaration of `ChargingConnector` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ChargingConnector; }
 // Forward declaration of `ClusterEventName` to properly resolve imports.
@@ -36,6 +40,8 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ForkTyp
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct GlyphImage; }
 // Forward declaration of `GridImageSize` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class GridImageSize; }
+// Forward declaration of `GridSectionImageSize` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class GridSectionImageSize; }
 // Forward declaration of `GridTemplateConfig` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct GridTemplateConfig; }
 // Forward declaration of `HideControls` to properly resolve imports.
@@ -194,6 +200,8 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ZoomEve
 #include "AlertDismissalReason.hpp"
 #include "AssetImage.hpp"
 #include "AutoText.hpp"
+#include "CarLocation.hpp"
+#include "CarLocationStatus.hpp"
 #include "ChargingConnector.hpp"
 #include "ClusterEventName.hpp"
 #include "ColorScheme.hpp"
@@ -204,6 +212,7 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ZoomEve
 #include "ForkType.hpp"
 #include "GlyphImage.hpp"
 #include "GridImageSize.hpp"
+#include "GridSectionImageSize.hpp"
 #include "GridTemplateConfig.hpp"
 #include "HideControls.hpp"
 #include "HybridAutoPlaySpec.hpp"

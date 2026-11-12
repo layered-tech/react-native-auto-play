@@ -1,10 +1,13 @@
 import React from 'react';
 import type { BaseCarPlayDashboardButton } from '../specs/CarPlayDashboard.nitro';
 import type { EventName, VisibilityState } from '../types/Event';
-import type { AutoImage } from '../types/Image';
+import type { LocalAutoImage } from '../types/Image';
 import type { ColorScheme, RootComponentInitialProps } from '../types/RootComponent';
 export interface CarPlayDashboardButton extends BaseCarPlayDashboardButton {
-    image: AutoImage;
+    /**
+     * no remote images, dashboard buttons are not redrawn once a download finishes, see README
+     */
+    image: LocalAutoImage;
 }
 export type CarPlayDashboardEvent = EventName | VisibilityState;
 declare class Dashboard {

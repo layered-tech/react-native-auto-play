@@ -33,6 +33,14 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay::bridge::swift {
     };
   }
   
+  // pragma MARK: std::function<void(double /* sessionId */)>
+  Func_void_double create_Func_void_double(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = ReactNativeAutoPlay::Func_void_double::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](double sessionId) mutable -> void {
+      swiftClosure.call(sessionId);
+    };
+  }
+  
   // pragma MARK: std::function<void(VisibilityState /* payload */)>
   Func_void_VisibilityState create_Func_void_VisibilityState(void* NON_NULL swiftClosureWrapper) noexcept {
     auto swiftClosure = ReactNativeAutoPlay::Func_void_VisibilityState::fromUnsafe(swiftClosureWrapper);
@@ -46,6 +54,14 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay::bridge::swift {
     auto swiftClosure = ReactNativeAutoPlay::Func_void_std__optional_Location__std__optional_std__string_::fromUnsafe(swiftClosureWrapper);
     return [swiftClosure = std::move(swiftClosure)](const std::optional<Location>& coordinates, const std::optional<std::string>& query) mutable -> void {
       swiftClosure.call(coordinates, query);
+    };
+  }
+  
+  // pragma MARK: std::function<void(const CarLocation& /* location */)>
+  Func_void_CarLocation create_Func_void_CarLocation(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = ReactNativeAutoPlay::Func_void_CarLocation::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const CarLocation& location) mutable -> void {
+      swiftClosure.call(location);
     };
   }
   

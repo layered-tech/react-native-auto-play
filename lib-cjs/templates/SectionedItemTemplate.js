@@ -16,6 +16,7 @@ const convertSections = (template, sections) => {
             return {
                 title: section.title,
                 buttons: NitroGrid_1.NitroGridUtil.convert(template, section.buttons),
+                imageSize: section.imageSize,
             };
         }
         const [nitroSection] = NitroSection_1.NitroSectionUtil.convert(template, [section]) ?? [];

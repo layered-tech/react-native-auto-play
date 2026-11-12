@@ -45,6 +45,7 @@ __exportStar(require("./hooks/useMapTemplate"), exports);
 var AndroidAutomotive_nitro_1 = require("./specs/AndroidAutomotive.nitro");
 Object.defineProperty(exports, "CarUxRestrictions", { enumerable: true, get: function () { return AndroidAutomotive_nitro_1.CarUxRestrictions; } });
 __exportStar(require("./types/Button"), exports);
+__exportStar(require("./types/CarLocation"), exports);
 __exportStar(require("./types/Event"), exports);
 __exportStar(require("./types/Image"), exports);
 __exportStar(require("./types/Maneuver"), exports);

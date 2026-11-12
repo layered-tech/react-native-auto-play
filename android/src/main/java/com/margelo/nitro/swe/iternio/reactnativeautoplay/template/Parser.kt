@@ -38,9 +38,11 @@ import androidx.car.app.versioning.CarAppApiLevels
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.graphics.scale
 import androidx.core.net.toUri
 import com.facebook.datasource.DataSources
 import com.facebook.drawee.backends.pipeline.Fresco
+import com.facebook.imagepipeline.common.ResizeOptions
 import com.facebook.imagepipeline.image.CloseableBitmap
 import com.facebook.imagepipeline.image.CloseableXml
 import com.facebook.imagepipeline.request.ImageRequest
@@ -82,8 +84,14 @@ import com.margelo.nitro.swe.iternio.reactnativeautoplay.TravelEstimates
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.TurnType
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.Variant_GlyphImage_AssetImage_RemoteImage
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.BitmapCache
+import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.RemoteImageLoader
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.SymbolFont
+import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.TemplateUpdateQueue
+import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.cacheKey
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.get
+import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.hasPlaceholder
+import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.placeholderAssetImage
+import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.placeholderGlyphImage
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -283,9 +291,23 @@ object Parser {
         context: CarContext,
         glyphImage: GlyphImage?,
         assetImage: AssetImage?,
-        remoteImage: RemoteImage?
+        remoteImage: RemoteImage?,
+        glyphSizeDp: Int = SymbolFont.DEFAULT_SIZE_DP
     ): CarIcon {
-        val bitmap = parseImageToBitmap(context, glyphImage, assetImage, remoteImage)
+        // the placeholder gets its own tint handling, not the one of the remote image
+        if (remoteImage != null && remoteImage.hasPlaceholder && glyphImage == null &&
+            assetImage == null && parseRemoteImage(context, remoteImage) == null
+        ) {
+            return parseImage(
+                context,
+                remoteImage.placeholderGlyphImage,
+                remoteImage.placeholderAssetImage,
+                null,
+                SymbolFont.PLACEHOLDER_SIZE_DP
+            )
+        }
+
+        val bitmap = parseImageToBitmap(context, glyphImage, assetImage, remoteImage, glyphSizeDp)
 
         // the tint recolors every opaque pixel, so it would also fill the background drawn in SymbolFont
         val hasGlyphBackground =
@@ -311,11 +333,12 @@ object Parser {
         context: CarContext,
         glyphImage: GlyphImage?,
         assetImage: AssetImage?,
-        remoteImage: RemoteImage?
+        remoteImage: RemoteImage?,
+        glyphSizeDp: Int = SymbolFont.DEFAULT_SIZE_DP
     ): Bitmap? {
         glyphImage?.let {
             return SymbolFont.imageFromNitroImage(
-                context, it
+                context, it, glyphSizeDp
             )
         }
         assetImage?.let {
@@ -323,6 +346,14 @@ object Parser {
         }
         remoteImage?.let {
             return parseRemoteImage(context, it)
+                ?: it.placeholderGlyphImage?.let { placeholder ->
+                    SymbolFont.imageFromNitroImage(
+                        context, placeholder, SymbolFont.PLACEHOLDER_SIZE_DP
+                    )
+                }
+                ?: it.placeholderAssetImage?.let { placeholder ->
+                    parseAssetImage(context, placeholder)
+                }
         }
 
         return null
@@ -445,27 +476,31 @@ object Parser {
                 setOnSelectedListener {
                     // onPress is always defined on radio lists
                     rows[it].onPress!!(null)
-                    AndroidAutoTemplate.getTypedConfig<ListTemplateConfig>(templateId)
-                        ?.let { config ->
-                            val items =
-                                config.sections?.get(sectionIndex)?.items?.mapIndexed { index, item ->
-                                    item.copy(selected = it == index)
-                                }?.toTypedArray() ?: return@let
+                    TemplateUpdateQueue.post {
+                        AndroidAutoTemplate.getTypedConfig<ListTemplateConfig>(templateId)
+                            ?.let { config ->
+                                val items =
+                                    config.sections?.get(sectionIndex)?.items?.mapIndexed { index, item ->
+                                        item.copy(selected = it == index)
+                                    }?.toTypedArray() ?: return@let
 
-                            val section = config.sections[sectionIndex].copy(items = items)
-                            config.sections[sectionIndex] = section
+                                val section = config.sections[sectionIndex].copy(items = items)
+                                config.sections[sectionIndex] = section
 
-                            AndroidAutoScreen.getScreen(templateId)?.applyConfigUpdate()
-                        }
+                                AndroidAutoScreen.getScreen(templateId)?.applyConfigUpdate()
+                            }
+                    }
                 }
             }
             rows.forEachIndexed { index, row ->
                 addItem(parseRow(context, row, onToggle = { isChecked ->
                     // onpPress is always defined on toggle rows
                     row.onPress!!(isChecked)
-                    val item = row.copy(checked = isChecked)
-                    rows[index] = item
-                    AndroidAutoScreen.getScreen(templateId)?.applyConfigUpdate()
+                    TemplateUpdateQueue.post {
+                        val item = row.copy(checked = isChecked)
+                        rows[index] = item
+                        AndroidAutoScreen.getScreen(templateId)?.applyConfigUpdate()
+                    }
                 }, onClick = if (selectedIndex == null && row.onPress != null) {
                     { row.onPress(null) }
                 } else {
@@ -512,10 +547,14 @@ object Parser {
 
     fun parseGridItem(context: CarContext, button: NitroGridButton): GridItem =
         GridItem.Builder().apply {
-            setTitle(parseText(button.title))
+            setTitle(parseGridButtonTitle(button.title))
             setOnClickListener(button.onPress)
             setImage(parseImage(context, button.image))
         }.build()
+
+    /** Android Auto crashes on an empty grid item or row title, a whitespace is fine */
+    fun parseGridButtonTitle(title: AutoText): CarText =
+        if (title.text.isBlank()) CarText.create(" ") else parseText(title)
 
     private fun ListImageType.toRowImageType(): Int = when (this) {
         ListImageType.LARGE -> Row.IMAGE_TYPE_LARGE
@@ -641,12 +680,43 @@ object Parser {
             cache = { result -> BitmapCache.put(context, assetImage, result) })
     }
 
+    /**
+     * null while an image with placeholder downloads in the background, the template that is
+     * being built gets rebuilt once it is cached, see [RemoteImageLoader]
+     */
     fun parseRemoteImage(context: CarContext, remoteImage: RemoteImage): Bitmap? {
         BitmapCache.get(context, remoteImage)?.let { return it }
 
-        val imageRequest = buildImageRequest(remoteImage.uri.toUri())
-        val timeoutMs = remoteImage.timeoutMs?.toLong() ?: 500L
-        val bitmap = fetchBitmap(context, imageRequest, timeoutMs = timeoutMs) ?: return null
+        val maxSizePx = RemoteImageLoader.maxImageSizePx(context)
+        val imageRequest = buildImageRequest(remoteImage.uri.toUri(), maxSizePx)
+
+        if (remoteImage.hasPlaceholder && RemoteImageLoader.isBuildingTemplate) {
+            val timeoutMs =
+                remoteImage.timeoutMs?.toLong() ?: RemoteImageLoader.DEFAULT_BACKGROUND_TIMEOUT_MS
+
+            RemoteImageLoader.loadInBackground(remoteImage.cacheKey(context)) {
+                val bitmap = fetchBitmap(context, imageRequest, timeoutMs = timeoutMs)
+                    ?.downscale(maxSizePx)
+                    ?: return@loadInBackground false
+
+                applyTintAndCache(
+                    context = context,
+                    color = remoteImage.color,
+                    bitmap = bitmap,
+                    cache = { result -> BitmapCache.put(context, remoteImage, result) })
+                true
+            }
+            return null
+        }
+        // with a placeholder timeoutMs limits the background download, waiting that long here
+        // would hold up the update
+        val timeoutMs = if (remoteImage.hasPlaceholder) {
+            RemoteImageLoader.DEFAULT_BLOCKING_TIMEOUT_MS
+        } else {
+            remoteImage.timeoutMs?.toLong() ?: RemoteImageLoader.DEFAULT_BLOCKING_TIMEOUT_MS
+        }
+        val bitmap = fetchBitmap(context, imageRequest, timeoutMs = timeoutMs)
+            ?.downscale(maxSizePx) ?: return null
 
         return applyTintAndCache(
             context = context,
@@ -656,9 +726,24 @@ object Parser {
     }
 
     // Disable Fresco's own caching — BitmapCache handles all caching uniformly
-    private fun buildImageRequest(uri: android.net.Uri): ImageRequest =
+    private fun buildImageRequest(uri: android.net.Uri, maxSizePx: Int? = null): ImageRequest =
         ImageRequestBuilder.newBuilderWithSource(uri).disableDiskCache().disableMemoryCache()
+            .apply {
+                // decodes JPEGs smaller right away, other formats are scaled after decoding
+                maxSizePx?.let { resizeOptions = ResizeOptions(it, it) }
+            }
             .build()
+
+    private fun Bitmap.downscale(maxSizePx: Int): Bitmap {
+        val longerSide = maxOf(width, height)
+        if (longerSide <= maxSizePx) {
+            return this
+        }
+        val scale = maxSizePx.toFloat() / longerSide
+        return this.scale(
+            (width * scale).toInt().coerceAtLeast(1), (height * scale).toInt().coerceAtLeast(1)
+        )
+    }
 
     /**
      * Fetches a bitmap via Fresco's image pipeline.

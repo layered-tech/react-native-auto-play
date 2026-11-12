@@ -18,9 +18,11 @@ import com.margelo.nitro.NitroModules
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.AndroidAutoTemplate
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.template.MapTemplate
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.AppInfo
+import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.TemplateUpdateQueue
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 
 class AndroidAutoSession(sessionInfo: SessionInfo) :
     Session() {
@@ -64,7 +66,7 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
             val template = MapTemplate(context = carContext, config, initNavigationManager = false)
             AndroidAutoTemplate.setTemplate(moduleName, template)
 
-            return template.parse()
+            return template.render()
         }
 
         val appName = AppInfo.getApplicationLabel(carContext)
@@ -77,9 +79,14 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
     override fun onCreateScreen(intent: Intent): Screen {
         val initialTemplate = getInitialTemplate()
         val screen = AndroidAutoScreen(carContext, moduleName, initialTemplate)
+        // clusters hold no templates, only the head unit session needs an id
+        val sessionId = if (clusterId == null) lastSessionId.incrementAndGet() else null
 
         sessions[moduleName] = ScreenContext(
-            carContext = carContext, session = this, state = VisibilityState.DIDDISAPPEAR
+            carContext = carContext,
+            session = this,
+            state = VisibilityState.DIDDISAPPEAR,
+            sessionId = sessionId
         )
 
         clusterId?.let {
@@ -89,10 +96,13 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
         lifecycle.addObserver(sessionLifecycleObserver)
         NitroModules.applicationContext?.addLifecycleEventListener(reactLifecycleObserver)
 
-        if (clusterId == null) {
-            HybridAutoPlay.emit(EventName.DIDCONNECT)
-        } else {
+        if (clusterId != null) {
             HybridCluster.emit(ClusterEventName.DIDCONNECTWITHWINDOW, clusterId)
+        } else if (sessionId != null) {
+            HybridAutoPlay.emit(EventName.DIDCONNECT, sessionId)
+            if (HybridAutoPlay.hasCarLocationListeners()) {
+                CarHardwareLocationObserver.start(carContext)
+            }
         }
 
         return screen
@@ -122,7 +132,9 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
 
         if (clusterId != null) {
             HybridCluster.emitColorScheme(clusterId, colorScheme)
-            AndroidAutoScreen.getScreen(clusterId)?.applyConfigUpdate(invalidate = true)
+            TemplateUpdateQueue.post {
+                AndroidAutoScreen.getScreen(clusterId)?.applyConfigUpdate(invalidate = true)
+            }
             return
         }
 
@@ -133,7 +145,7 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
             config.onAppearanceDidChange(colorScheme)
         }
 
-        AndroidAutoScreen.invalidateScreens()
+        TemplateUpdateQueue.post { AndroidAutoScreen.invalidateScreens() }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -242,14 +254,15 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
                 return
             }
 
-            sessions.remove(moduleName)
+            val sessionId = sessions.remove(moduleName)?.sessionId
             clusterId?.let {
                 HybridCluster.emit(ClusterEventName.DIDDISCONNECT, clusterId)
                 clusterSessions.remove(it)
                 return
             }
 
-            HybridAutoPlay.emit(EventName.DIDDISCONNECT)
+            CarHardwareLocationObserver.stop()
+            sessionId?.let { HybridAutoPlay.emit(EventName.DIDDISCONNECT, it) }
         }
     }
 
@@ -264,7 +277,10 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
     }
 
     data class ScreenContext(
-        val carContext: CarContext, val session: AndroidAutoSession, var state: VisibilityState
+        val carContext: CarContext,
+        val session: AndroidAutoSession,
+        var state: VisibilityState,
+        val sessionId: Int?
     )
 
     companion object {
@@ -275,8 +291,19 @@ class AndroidAutoSession(sessionInfo: SessionInfo) :
 
         private val clusterSessions = CopyOnWriteArrayList<String>()
 
+        private val lastSessionId = AtomicInteger(0)
+
         fun getIsConnected(): Boolean {
             return sessions.containsKey(ROOT_SESSION)
+        }
+
+        /**
+         * Assigned on every head unit connect, so JS can tell a listener that was suspended across a
+         * disconnect from one called for the current session. Removed together with the session, which
+         * the isCurrentSession check keeps an older session's late onDestroy from doing.
+         */
+        fun getSessionId(): Int? {
+            return sessions[ROOT_SESSION]?.sessionId
         }
 
         fun getState(marker: String): VisibilityState? {

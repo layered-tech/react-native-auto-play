@@ -57,6 +57,7 @@ class MapTemplate extends Template_1.Template {
     /**
      * @namespace iOS updates the panel shown when tapping the ellipsis button
      * next to the travel estimates during navigation (iOS 27+).
+     * No remote images, the panel is not redrawn once a download finishes, see README.
      */
     updateOptionsPanel(optionsPanel) {
         if (react_native_1.Platform.OS !== 'ios') {

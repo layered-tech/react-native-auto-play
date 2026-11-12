@@ -36,10 +36,25 @@ interface GlyphImage {
     backgroundColor: NitroColor;
     fontScale?: number;
 }
+/**
+ * the placeholder glyph or asset is flattened into placeholder* fields, a nested struct overflows
+ * nitrogen's call stack for the specs that use NitroImage deep inside their config.
+ * `placeholderColor` is the glyph color or the asset tint.
+ */
 interface RemoteImage {
     uri: string;
     color?: NitroColor;
     timeoutMs?: number;
+    placeholderGlyph?: number;
+    placeholderFontName?: string;
+    placeholderColor?: NitroColor;
+    placeholderBackgroundColor?: NitroColor;
+    placeholderFontScale?: number;
+    placeholderUri?: string;
+    placeholderWidth?: number;
+    placeholderHeight?: number;
+    placeholderScale?: number;
+    placeholderPackagerAsset?: boolean;
 }
 /**
  * NitroModules-compatible image types passed to native.

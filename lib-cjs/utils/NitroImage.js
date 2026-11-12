@@ -58,33 +58,23 @@ function resolveGlyph(image) {
     }
     throw new Error('Glyph image must provide either `name` or `codepoint`.');
 }
-function convert(image) {
-    if (image == null) {
-        return undefined;
-    }
-    if (image.type === 'glyph') {
-        const { color = 'default', fontScale, backgroundColor = 'transparent' } = image;
-        return {
-            glyph: resolveGlyph(image),
-            fontName: getIconFont(),
-            color: NitroColor_1.NitroColorUtil.convert(color),
-            backgroundColor: NitroColor_1.NitroColorUtil.convert(backgroundColor),
-            fontScale,
-        };
-    }
-    if (image.type === 'remote') {
-        return {
-            uri: image.uri,
-            color: NitroColor_1.NitroColorUtil.convert(image.color),
-            timeoutMs: image.timeoutMs,
-        };
-    }
+function convertGlyph(image) {
+    const { color = 'default', fontScale, backgroundColor = 'transparent' } = image;
+    return {
+        glyph: resolveGlyph(image),
+        fontName: getIconFont(),
+        color: NitroColor_1.NitroColorUtil.convert(color),
+        backgroundColor: NitroColor_1.NitroColorUtil.convert(backgroundColor),
+        fontScale,
+    };
+}
+function convertAsset(image) {
     // Image.resolveAssetSource is pretty terrible, it will simply return whatever object you pass it is not a number [require(...)]
     // so the input allows all optional parameters which are returned as is even though
     // the return type claims to not have any optional parameters...
     // we specify some default values to not crash because of proper typing required by nitro-modules
     const { height = 0, scale = 0, uri = '', width = 0, ...rest } = react_native_1.Image.resolveAssetSource(image.image) ?? {};
-    const assetImage = {
+    return {
         height,
         scale,
         uri,
@@ -92,6 +82,46 @@ function convert(image) {
         packager_asset: '__packager_asset' in rest ? Boolean(rest.__packager_asset) : false,
         color: NitroColor_1.NitroColorUtil.convert(image.color),
     };
-    return assetImage;
+}
+function convertPlaceholder(placeholder) {
+    if (placeholder == null) {
+        return {};
+    }
+    if (placeholder.type === 'asset') {
+        const asset = convertAsset(placeholder);
+        return {
+            placeholderUri: asset.uri,
+            placeholderWidth: asset.width,
+            placeholderHeight: asset.height,
+            placeholderScale: asset.scale,
+            placeholderPackagerAsset: asset.packager_asset,
+            placeholderColor: asset.color,
+        };
+    }
+    const glyph = convertGlyph(placeholder);
+    return {
+        placeholderGlyph: glyph.glyph,
+        placeholderFontName: glyph.fontName,
+        placeholderColor: glyph.color,
+        placeholderBackgroundColor: glyph.backgroundColor,
+        placeholderFontScale: glyph.fontScale,
+    };
+}
+function convert(image) {
+    if (image == null) {
+        return undefined;
+    }
+    if (image.type === 'glyph') {
+        return convertGlyph(image);
+    }
+    if (image.type === 'remote') {
+        return {
+            uri: image.uri,
+            color: NitroColor_1.NitroColorUtil.convert(image.color),
+            timeoutMs: image.timeoutMs,
+            ...convertPlaceholder(image.placeholder),
+        };
+    }
+    return convertAsset(image);
 }
 exports.NitroImageUtil = { convert };

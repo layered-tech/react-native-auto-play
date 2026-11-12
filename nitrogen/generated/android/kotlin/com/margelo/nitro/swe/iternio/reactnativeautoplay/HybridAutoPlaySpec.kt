@@ -30,14 +30,18 @@ abstract class HybridAutoPlaySpec: HybridObject() {
   
 
   // Methods
-  abstract fun addListener(eventType: EventName, callback: () -> Unit): () -> Unit
+  abstract fun addListener(eventType: EventName, callback: (sessionId: Double) -> Unit): () -> Unit
   
   @DoNotStrip
   @Keep
-  private fun addListener_cxx(eventType: EventName, callback: Func_void): Func_void {
+  private fun addListener_cxx(eventType: EventName, callback: Func_void_double): Func_void {
     val __result = addListener(eventType, callback)
     return Func_void_java(__result)
   }
+  
+  @DoNotStrip
+  @Keep
+  abstract fun getCurrentSessionId(): Double?
   
   abstract fun addListenerRenderState(moduleName: String, callback: (payload: VisibilityState) -> Unit): () -> Unit
   
@@ -54,6 +58,15 @@ abstract class HybridAutoPlaySpec: HybridObject() {
   @Keep
   private fun addListenerVoiceInput_cxx(callback: Func_void_std__optional_Location__std__optional_std__string_): Func_void {
     val __result = addListenerVoiceInput(callback)
+    return Func_void_java(__result)
+  }
+  
+  abstract fun addListenerCarLocation(callback: (location: CarLocation) -> Unit): () -> Unit
+  
+  @DoNotStrip
+  @Keep
+  private fun addListenerCarLocation_cxx(callback: Func_void_CarLocation): Func_void {
+    val __result = addListenerCarLocation(callback)
     return Func_void_java(__result)
   }
   

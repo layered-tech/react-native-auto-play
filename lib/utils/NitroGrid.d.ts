@@ -2,7 +2,10 @@ import type { AutoImage } from '../types/Image';
 import type { AutoText } from '../types/Text';
 import { type NitroImage } from './NitroImage';
 export type GridButton<T> = {
-    title: AutoText;
+    /**
+     * optional, a button without title is drawn with an empty one
+     */
+    title?: AutoText;
     image: AutoImage;
     onPress: (template: T) => void;
 };

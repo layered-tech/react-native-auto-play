@@ -59,6 +59,7 @@ __exportStar(require("./templates/SectionedItemTemplate"), exports);
 __exportStar(require("./templates/SignInTemplate"), exports);
 __exportStar(require("./templates/Template"), exports);
 __exportStar(require("./types/Button"), exports);
+__exportStar(require("./types/CarLocation"), exports);
 __exportStar(require("./types/Event"), exports);
 __exportStar(require("./types/Image"), exports);
 __exportStar(require("./types/Maneuver"), exports);

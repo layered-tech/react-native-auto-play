@@ -4,7 +4,7 @@ exports.NitroGridUtil = void 0;
 const NitroImage_1 = require("./NitroImage");
 const convert = (template, buttons) => {
     return buttons.map((button) => ({
-        title: button.title,
+        title: button.title ?? { text: '' },
         image: NitroImage_1.NitroImageUtil.convert(button.image),
         onPress: () => button.onPress(template),
     }));

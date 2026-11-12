@@ -1,6 +1,7 @@
 import React from 'react';
 import type { AutoText } from '..';
 import type { ActionButtonAndroid, ImageButton, MapButton, MapPanButton, TextButton } from '../types/Button';
+import type { WithoutRemoteImages } from '../types/Image';
 import type { AutoManeuver, ManeuverState } from '../types/Maneuver';
 import type { ColorScheme, RootComponentInitialProps } from '../types/RootComponent';
 import type { TripConfig, TripPoint, TripPreviewTextConfiguration, TripsConfig } from '../types/Trip';
@@ -178,10 +179,10 @@ export type MapTemplateConfig = Omit<NitroMapTemplateConfig, 'mapButtons' | 'hea
     component: React.ComponentType<RootComponentInitialProps>;
     /**
      * the panel shown when tapping the ellipsis button next to the travel estimates during active navigation (iOS 27+).
-     * No-op on Android
+     * No-op on Android. No remote images, the panel is not redrawn once a download finishes, see README.
      * @namespace iOS
      */
-    optionsPanel?: OptionsPanelConfig<MapTemplate>;
+    optionsPanel?: WithoutRemoteImages<OptionsPanelConfig<MapTemplate>>;
     /**
      * Notification that navigation was stopped. May occur when another source such as the car head unit starts navigating.
      * The navigation session on Android Auto/CarPlay is stopped already when this callback is triggered, make sure to stop other things like TTS too.
@@ -210,8 +211,9 @@ export declare class MapTemplate extends Template<MapTemplateConfig, MapTemplate
     /**
      * @namespace iOS updates the panel shown when tapping the ellipsis button
      * next to the travel estimates during navigation (iOS 27+).
+     * No remote images, the panel is not redrawn once a download finishes, see README.
      */
-    updateOptionsPanel(optionsPanel?: OptionsPanelConfig<MapTemplate>): Promise<void> | undefined;
+    updateOptionsPanel(optionsPanel?: WithoutRemoteImages<OptionsPanelConfig<MapTemplate>>): Promise<void> | undefined;
     setMapButtons(mapButtons: MapTemplateConfig['mapButtons']): Promise<void>;
     /**
      * changes which map controls auto-hide, see `hideControls`
@@ -243,8 +245,9 @@ export declare class MapTemplate extends Template<MapTemplateConfig, MapTemplate
         /**
          * @namespace iOS - always shown no matter if navigation is started or not
          * @namespace Android - these buttons will only be shown when navigation is not started, otherwise AA will not show them
+         * No remote images, the trip selector is not redrawn once a download finishes, see README.
          */
-        mapButtons?: MapTemplateConfig['mapButtons'];
+        mapButtons?: WithoutRemoteImages<MapTemplateConfig['mapButtons']>;
     }): TripSelectorCallback;
     hideTripSelector(): void;
     updateVisibleTravelEstimate(visibleTravelEstimate: VisibleTravelEstimate): void;
