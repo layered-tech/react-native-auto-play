@@ -498,6 +498,71 @@ It is also possible to use custom bundled images (e.g. PNG, WEBP or Vector Drawa
 - iOS: Add to your `Images.xcassets`
 - Android: Add to `res/drawable`
 
+### Remote images
+
+**Prefer glyphs and bundled assets over remote images.** Templates are built natively in one go, so an uncached remote image is downloaded while the template is built:
+
+- Each uncached remote image waits for its download for up to `timeoutMs` (default 500 ms). Images are loaded one after another, so a template with several uncached remote images can take several times that to show up or update.
+- Template updates are applied in order, so every update queued after a slow one waits too. On Android this includes navigation updates such as `updateManeuvers`, and since those rebuild the `MapTemplate`, remote images on its map buttons and header actions are loaded again on every navigation update until they are cached.
+- A download that times out or fails is not cached and is retried on the next build, so on a slow connection every update waits again. An image that arrives after the timeout is not shown; the template shows a placeholder icon instead.
+- Successfully loaded images are downscaled (on iOS to the size CarPlay draws them at; on Android to 224 dp as [recommended for large images](https://developer.android.com/reference/androidx/car/app/model/Row#IMAGE_TYPE_LARGE())) and kept in an in-memory cache (8 MB), so the cost only applies the first time. Serve images close to that size; a full-size photo is downloaded completely just to be scaled down.
+
+If you need remote images, use them for content that is only known at runtime (e.g. logos in search results), keep their number per template low, and lower `timeoutMs` where a placeholder is acceptable.
+
+#### Placeholders
+
+Give a remote image a `placeholder` (a glyph or a bundled asset, any `LocalAutoImage`) and none of the above applies: the template is built right away with the placeholder, the image downloads in the background, and the template is redrawn once it arrives. Glyph placeholders are drawn larger than icons so they stay sharp in large grid items; an asset is drawn at its own size, e.g. a blurred photo shown in place of the real one.
+
+```ts
+{
+  type: 'remote',
+  uri: 'https://example.com/charger.jpg',
+  placeholder: { type: 'glyph', name: 'photo', color: 'default' },
+}
+```
+
+-   `timeoutMs` then limits the background download (default 10 s). When it times out or fails, the placeholder stays and the download is not retried for 30 s, so redraws don't hammer a broken URL.
+-   Only the templates that showed the placeholder are redrawn, and only while they are still on screen. A template popped in the meantime is skipped; the image is cached for the next time it is shown. Downloads finishing close together are drawn in one redraw. A finished image is not downloaded again for 10 s, so if the cache drops it before the redraw (many large images), the placeholder stays instead of the template reloading in a loop.
+-   This works for every image drawn while a template is built, which happens when it is pushed or updated, including header actions and map buttons.
+-   Images drawn outside of a template build have nothing to redraw, so they don't accept remote images at all (`LocalAutoImage`, or `WithoutRemoteImages<…>` for whole configs): navigation alerts, CarPlay dashboard buttons, the cluster's attributed descriptions, the trip selector's map buttons and the CarPlay options panel. Maneuver images never accepted remote images.
+-   One exception on CarPlay: when a template shows as a map panel (iOS 27+), its header actions and map buttons are applied as the panel appears, outside of a build. A remote image there waits for its download like one without a placeholder, always for the default 500 ms since `timeoutMs` is meant for the background download, and shows the placeholder if that fails.
+
+#### Images created or downloaded by your app
+
+Where only `LocalAutoImage` is accepted, e.g. in a navigation alert, an image your app creates or downloads can still be shown as an `asset` image with a `file://` or `data:` URI. Create the alert (or set the buttons) once the image is ready.
+
+A local file, e.g. a download saved with a file system library:
+
+```ts
+mapTemplate.showAlert({
+  // ...
+  image: { type: 'asset', image: { uri: 'file:///path/to/image.png', scale: 3 } },
+});
+```
+
+Without a file system library, a download can be passed as a `data:` URI instead:
+
+```ts
+async function fetchAsDataUri(uri: string): Promise<string> {
+  const response = await fetch(uri);
+  const blob = await response.blob();
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+const image = { type: 'asset', image: { uri: await fetchAsDataUri('https://example.com/charger.jpg') } };
+```
+
+-   **Set `scale` on iOS** to the scale the image was made for, e.g. `3` for an image sized for a 3x screen. Without it iOS uses the image at one pixel per point, so such an image comes out three times too big wherever CarPlay doesn't resize it. Android ignores it.
+-   **Keep the file** as long as a template uses it. iOS doesn't cache asset images and reads the file again on every update that contains it (e.g. on a light/dark switch), Android when it drops out of its cache. A file deleted in the meantime makes the image disappear.
+-   **Use a new file name for new content.** Android caches asset images by URI, so writing a new image to the same path keeps showing the old one there.
+-   **Prefer files over `data:` URIs.** A `data:` URI sends the whole image to native as a string every time it is set, and iOS decodes it again on every update that contains it, so keep those images small.
+
 ### Icon colors and Android Auto light templates
 
 Starting with **Android Auto 17.8** the host can show white (light) templates in day mode. Older versions (e.g. 17.6) always use dark templates, even in day mode. Both report the same car app API level, so an app cannot tell them apart, and a fixed icon color that is readable on one (white on dark) can be invisible on the other (white on white).
@@ -634,6 +699,26 @@ export default registerAutoPlay;
 
 Set the root template from a `didConnect` listener rather than once at startup. A listener registered while a car is already connected is called right away, so this covers the app starting before or after the car connects, every reconnect, and a JS reload while connected: the reload discards the rendered car screen, and the re-registered listener sets the root template again.
 
+Templates belong to the session they were shown in, and a disconnect frees them. If your `didConnect` listener awaits anything before building templates, check that its session is still the current one afterwards. On iOS, an app launched from CarPlay only is suspended when CarPlay disconnects, so a pending `await` resumes only when CarPlay reconnects or the app is opened on the phone, by then in a different session or none at all:
+
+```ts
+HybridAutoPlay.addListener('didConnect', async (sessionId) => {
+  const isCurrentSession = () => HybridAutoPlay.getCurrentSessionId() === sessionId;
+
+  // any async work, e.g. loading translations, settings or data from the network
+  await somethingAsync();
+
+  // re-check after every await, before calling any template method
+  if (!isCurrentSession()) {
+    return;
+  }
+
+  new MapTemplate({ ... }).setRootTemplate();
+});
+```
+
+A template from a session that has ended rejects with an error that `ErrorUtil.isTemplateNotFoundError(error)` detects.
+
 ## API Reference
 
 ### Main Object
@@ -700,7 +785,7 @@ Below is a concise overview of the most important props per template. Optional p
 List and grid sections mixed in one template. A section is one of:
 
 -   `{ type: 'default', title, items }` with `default`, `toggle` and `text` rows, like `ListTemplate`.
--   `{ type: 'grid', title, buttons }` with `GridButton`s, like `GridTemplate`.
+-   `{ type: 'grid', title, buttons, imageSize? }` with `GridButton`s, like `GridTemplate`. `imageSize: 'large'` (default `'small'`) draws the images larger, for photos: large grid items on Android (`GridSection.ITEM_SIZE_LARGE`; where the buttons fall back to rows, below Car API 8 or with `mapConfig` and several sections, large row images via `Row.IMAGE_TYPE_LARGE`; a single grid section with `mapConfig` is a `GridTemplate` and stays unchanged) and photo tiles on iOS, see the table below.
 
 **Radio sections are not supported.** Android Auto accepts a radio group in a `SectionedItemTemplate` (`RowSection.setAsSelectionGroup`, Car API 8+) and reports taps, but shows no selection state: no radio buttons, no highlight (tested on Android Auto 17.7 with `androidx.car.app` 1.8.0-rc01 and 1.9.0-alpha03, [issue 572978190](https://issuetracker.google.com/issues/572978190)). Hosts below Car API 8 can't show a radio group next to other sections at all. For a selection, use a `ListTemplate` with a radio section, which works on both platforms.
 
@@ -720,6 +805,7 @@ How each platform renders it:
 | **Android, `mapConfig` set** | sectioned `ListTemplate` in a `MapWithContentTemplate` | exactly one grid section and nothing else: a `GridTemplate` in a `MapWithContentTemplate`, without the section title. Otherwise **no grid**: the buttons are rendered as list rows, one row per button. A `SectionedItemTemplate` on the map crashes Android Auto at runtime ([issue 572287914](https://issuetracker.google.com/issues/572287914)), so the library uses a `GridTemplate` or `ListTemplate` instead. |
 | **iOS, panel** (`mapConfig` set, iOS 27+) | list items of a `CPMapPanel` section | grid buttons of a `CPMapPanel` section |
 | **iOS 26+** | `CPListTemplate` section | one `CPListImageRowItem` with image grid elements, wrapping onto multiple lines |
+| **iOS 26+, `imageSize: 'large'`** | `CPListTemplate` section | one `CPListImageRowItem` with row elements (photo tiles with the title below), wrapping onto multiple lines. Below iOS 26 and on panels it is drawn like any other grid section. |
 | **iOS below 26** | `CPListTemplate` section | one `CPListImageRowItem`, at most `CPMaximumNumberOfGridImages` buttons in a single line, the rest are dropped. Titles below the images need iOS 17.4+. Below iOS 26 CarPlay shows a chevron on this row that does nothing when tapped and can't be hidden, iOS 26+ shows none. |
 
 In the `CPListTemplate`, a grid section's `title` is shown as the section header, the same as for list sections. An empty `title` (`''`) shows an empty header line on CarPlay and on Android hosts below Car API 8.
@@ -729,23 +815,12 @@ In the `CPListTemplate`, a grid section's `title` is shown as the section header
 | Prop | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `title` | `AutoText` | ✅ | Header title. |
-| `results` | `SearchSection<SearchTemplate>` | ❌ | Initial autocomplete results. |
-| `mapConfig` | `MapConfig<SearchTemplate>` | ❌ | Submit into a package-owned results list over the root map; autocomplete stays in the search UI. Requires Car API 7 / iOS 27 for the map; older hosts show a regular list. |
+| `results` | `SearchSection<SearchTemplate>` | ❌ | Initial results. |
 | `headerActions` | `HeaderActions<SearchTemplate>` | ❌ | Header actions. See **Header Actions** below. |
 | `searchHint` | `string` | ❌ | Android-only placeholder. |
 | `initialSearchText` | `string` | ❌ | Android-only initial value. |
 | `onSearchTextChanged` | `(text) => void` | ✅ | Fired on text input changes. |
 | `onSearchTextSubmitted` | `(text) => void` | ✅ | Fired on submit. |
-
-With `mapConfig` set, pressing Search starts your `onSearchTextSubmitted` callback immediately and
-presents a map-backed `ListTemplate` without CarPlay's intermediate full-screen results list.
-Continue calling `searchTemplate.updateSearchResults(...)` for both autocomplete and submitted
-results; the package forwards updates to the current results screen. Selecting an autocomplete row
-runs its existing handler directly. The app supplies its map and pins, as with other map content.
-The results panel inherits the search header actions, so provide a Back action or
-`mapConfig.ios.showCloseButton` to dismiss it. `onPopped` runs when the results are closed, not
-when the keyboard is removed during the transition. `popTo()` targets the submitted results once
-shown. Without `mapConfig`, existing native search behavior is unchanged.
 
 #### InformationTemplateConfig
 
@@ -912,10 +987,12 @@ This section lists the available listeners and lifecycle callbacks so you can wi
 
 | API | Payload | Notes |
 | --- | --- | --- |
-| `HybridAutoPlay.addListener(event, cb)` | event: `'didConnect'` `'didDisconnect'` | Connection changes for the head unit. |
+| `HybridAutoPlay.addListener(event, cb)` | event: `'didConnect'` `'didDisconnect'`, `cb(sessionId)` | Connection changes for the head unit. `sessionId` is the session that connected or disconnected. |
+| `HybridAutoPlay.getCurrentSessionId()` | returns `number \| undefined` | The connected head unit session, `undefined` while disconnected. A new id is assigned on every connect, see [Create the AutoPlay Experience](#2-create-the-autoplay-experience). |
 | `HybridAutoPlay.addListenerRenderState(moduleName, cb)` | `cb(visibility: 'willAppear' \| 'didAppear' \| 'willDisappear' \| 'didDisappear')` | Use `AutoPlayModules.*` or a cluster UUID. |
 | `HybridAutoPlay.addListenerVoiceInput(cb)` | `cb(location?, query?)` | Android-only. Fires when the OS triggers a voice input event (e.g. "Hey Google, navigate to…"). For in-app recording use `startVoiceInput` instead. |
 | `HybridAutoPlay.addSafeAreaInsetsListener(moduleName, cb)` | `cb(insets)` | Safe area inset changes for any module. |
+| `HybridAutoPlay.addListenerCarLocation(cb)` | `cb(location: CarLocation)` | Android Auto only. The head unit's own GPS fix, see [Head unit location](#head-unit-location-android-auto-only). |
 
 ```ts
 import { AutoPlayModules, HybridAutoPlay } from '@iternio/react-native-auto-play';
@@ -959,6 +1036,23 @@ Map-specific callbacks live on `MapTemplateConfig`:
 - `onAppearanceDidChange(colorScheme)`
 - `onAutoDriveEnabled(template)` (Android)
 - `onStopNavigation(template)` (**required**)
+
+#### Navigation alerts
+
+`mapTemplate.showAlert(alert)` shows an alert with a `primaryAction` and an optional
+`secondaryAction`; `updateAlert` changes its title and subtitle and `dismissAlert` removes it.
+`onDidDismiss(reason)` reports `timeout`, `user` (an action or the close button) or `system` (the app
+dismissed it, or another alert replaced it).
+
+Both platforms draw the countdown on the primary action, so make that the action that stands for
+doing nothing, e.g. a Dismiss button. When the alert times out no action is pressed and
+`onDidDismiss` reports `timeout`. Android Auto has been seen to report a timeout only as a press of
+the primary action, though (17.8 on one phone): its `onPress` then runs and `onDidDismiss` reports
+`user`.
+
+A primary action with `style: 'cancel'` is drawn plain and the secondary action highlighted, as
+CarPlay does with any `cancel` action. Otherwise Android Auto highlights nothing. As a best
+practice, don't give both actions the same style.
 
 #### AutoPlayCluster listeners (instrument cluster)
 
@@ -1337,6 +1431,30 @@ const MyScreen = () => {
 
 ---
 
+### Head unit location (Android Auto only)
+
+`addListenerCarLocation` streams the head unit's own location (`CarSensors.addCarHardwareLocationListener` at `UPDATE_RATE_FASTEST`), apart from the phone's location providers. The listener is registered with the head unit while it is connected and at least one JS listener exists, and is removed on disconnect or when the last listener is removed.
+
+```ts
+import { HybridAutoPlay } from '@iternio/react-native-auto-play';
+
+const remove = HybridAutoPlay.addListenerCarLocation((location) => {
+  if (location.status !== 'success') {
+    console.log('no head unit location:', location.status);
+    return;
+  }
+  // put the fix on the phone's clock, the head unit's clock can be far off
+  const fixTime = Date.now() - (location.fixAgeMs ?? location.carValueAgeMs ?? 0);
+  console.log(location.latitude, location.longitude, location.accuracy, fixTime);
+});
+```
+
+-   **Payload** (`CarLocation`): `status` plus, on `success` only, `latitude`, `longitude`, `accuracy?` (m), `altitude?` (m), `speed?` (m/s), `heading?` (degrees), `timestamp` (head unit UTC ms), `fixAgeMs?`, `carValueAgeMs?`.
+-   **Ages**: `fixAgeMs` (from the fix's `elapsedRealtimeNanos`) and `carValueAgeMs` (from the CarValue timestamp) are measured on the phone's monotonic clock when the value is handed to JS. Prefer them over `timestamp`, head unit clocks can be off by tens of seconds.
+-   **Status** (`CarLocationStatus`): `unsupportedApiLevel` (car app API level below 3), `permissionDenied`, `unimplemented` (the head unit has no location), `unavailable` (no fix right now), `error`, `unknown`. Each change is emitted once; a listener added later first receives the current non-success status. Fixes are not replayed, the next one arrives at the head unit's rate.
+-   **Permission**: requires the app's runtime `ACCESS_FINE_LOCATION` grant (already declared in the library manifest). Adding a listener after a `permissionDenied` retries the registration, so add a new one once the permission was granted.
+-   **iOS / Android Automotive**: no-op, the listener never fires. CarPlay has no head unit location API, and on Automotive the platform location providers already are the car's.
+
 ### Hooks
 
 -   `useMapTemplate()`: Get a reference to the parent `MapTemplate` instance.
@@ -1492,8 +1610,8 @@ The same no-op surface is what `react-native-web` builds get automatically via `
     // Hide the splash screen for the CarPlay screen
     hideAsync(AutoPlayModules.AutoPlayRoot);
     ```
--   **CarPlay map panels (iOS 27 beta)**: a panel's optional icon-only secondary button (`mapConfig.ios.secondaryAction`, or the second `actions.ios` entry) does not respond to taps. See **Map + Content** above for details. This is a beta platform limitation, not a bug in this library — re-test against newer iOS 27 betas.
--   **Waypoint/options-panel images and toggle-row sizing (iOS 27 beta)**: custom images on a `waypoint` row/`ChargerLocation` have no reliable size, and `CPListItem.accessoryImage` (`toggle` rows) renders at an undersized fixed footprint regardless of the image supplied. See **Waypoint Rows** above for details. Beta platform limitations, not bugs in this library — an Apple Feedback report has been filed for the `accessoryImage` issue.
+-   **Navigation alert countdown on update (iOS 27)**: after `mapTemplate.updateAlert(...)`, the countdown on the alert's action jumps to the end instead of carrying on. The alert keeps its full duration on the CarPlay side, but the host redraws the countdown wrong. It works as expected on iOS <= 26. This is a CarPlay host bug, not a bug in this library; the app can't work around it, since passing the remaining time or keeping the duration unchanged both show the same jump.
+-   **Waypoint/options-panel images and toggle-row sizing (iOS 27)**: custom images on a `waypoint` row/`ChargerLocation` have no reliable size, and `CPListItem.accessoryImage` (`toggle` rows) renders at an undersized fixed footprint regardless of the image supplied. See **Waypoint Rows** above for details. Platform limitations, not bugs in this library — an Apple Feedback report has been filed for the `accessoryImage` issue.
 ### Android
 -   **Broken exceptions with `react-native`** up to version 0.79
 When using react-native before 0.80.0 exceptions are broken and are reported as `Unknown runtime_error` or similar.

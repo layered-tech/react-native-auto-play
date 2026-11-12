@@ -1,6 +1,6 @@
 {
   "name": "@iternio/react-native-auto-play",
-  "version": "0.9.3",
+  "version": "0.10.3",
   "description": "Android Auto and Apple CarPlay for react-native",
   "main": "lib/index",
   "module": "lib/index",
@@ -40,8 +40,8 @@
     "lint-ci": "biome ci src --reporter=summary",
     "typescript": "tsc",
     "build:jest": "tsc -p tsconfig.jest.json",
-    "specs": "nitrogen --logLevel=\"debug\"",
-    "prepare": "yarn circular && tsc && yarn build:jest && nitrogen",
+    "specs": "node --stack-size=8192 --input-type=module -e \"await import('nitrogen/lib/index.js')\"",
+    "prepare": "yarn circular && tsc && yarn build:jest && yarn specs",
     "swift:format": "swift-format format ./ios --in-place --recursive",
     "kotlin:format": "ktlint --format 'android/src/**/*.kt'",
     "circular": "dpdm ./src/* --circular --exit-code circular:1 --no-tree --warning=false --transform"

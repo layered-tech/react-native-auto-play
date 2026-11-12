@@ -18,6 +18,10 @@ namespace NitroModules { class ArrayBufferHolder; }
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct AssetImage; }
 // Forward declaration of `AutoText` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct AutoText; }
+// Forward declaration of `CarLocationStatus` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class CarLocationStatus; }
+// Forward declaration of `CarLocation` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct CarLocation; }
 // Forward declaration of `ChargingConnector` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ChargingConnector; }
 // Forward declaration of `ColorScheme` to properly resolve imports.
@@ -34,6 +38,8 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class ForkTyp
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct GlyphImage; }
 // Forward declaration of `GridImageSize` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class GridImageSize; }
+// Forward declaration of `GridSectionImageSize` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class GridSectionImageSize; }
 // Forward declaration of `HideControls` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class HideControls; }
 // Forward declaration of `HybridAutoPlaySpec` to properly resolve imports.
@@ -196,6 +202,8 @@ namespace ReactNativeAutoPlay { class HybridVoiceSpec_cxx; }
 #include "AlertDismissalReason.hpp"
 #include "AssetImage.hpp"
 #include "AutoText.hpp"
+#include "CarLocation.hpp"
+#include "CarLocationStatus.hpp"
 #include "ChargingConnector.hpp"
 #include "ColorScheme.hpp"
 #include "Distance.hpp"
@@ -204,6 +212,7 @@ namespace ReactNativeAutoPlay { class HybridVoiceSpec_cxx; }
 #include "ForkType.hpp"
 #include "GlyphImage.hpp"
 #include "GridImageSize.hpp"
+#include "GridSectionImageSize.hpp"
 #include "HideControls.hpp"
 #include "HybridAutoPlaySpec.hpp"
 #include "HybridAutoPlayTimingSpec.hpp"
@@ -310,6 +319,43 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay::bridge::swift {
     return Func_void_Wrapper(std::move(value));
   }
   
+  // pragma MARK: std::function<void(double /* sessionId */)>
+  /**
+   * Specialized version of `std::function<void(double)>`.
+   */
+  using Func_void_double = std::function<void(double /* sessionId */)>;
+  /**
+   * Wrapper class for a `std::function<void(double / * sessionId * /)>`, this can be used from Swift.
+   */
+  class Func_void_double_Wrapper final {
+  public:
+    explicit Func_void_double_Wrapper(std::function<void(double /* sessionId */)>&& func): _function(std::make_unique<std::function<void(double /* sessionId */)>>(std::move(func))) {}
+    inline void call(double sessionId) const noexcept {
+      _function->operator()(sessionId);
+    }
+  private:
+    std::unique_ptr<std::function<void(double /* sessionId */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_double create_Func_void_double(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_double_Wrapper wrap_Func_void_double(Func_void_double value) noexcept {
+    return Func_void_double_Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::optional<double>
+  /**
+   * Specialized version of `std::optional<double>`.
+   */
+  using std__optional_double_ = std::optional<double>;
+  inline std::optional<double> create_std__optional_double_(const double& value) noexcept {
+    return std::optional<double>(value);
+  }
+  inline bool has_value_std__optional_double_(const std::optional<double>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline double get_std__optional_double_(const std::optional<double>& optional) noexcept {
+    return optional.value();
+  }
+  
   // pragma MARK: std::function<void(VisibilityState /* payload */)>
   /**
    * Specialized version of `std::function<void(VisibilityState)>`.
@@ -384,6 +430,28 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay::bridge::swift {
     return Func_void_std__optional_Location__std__optional_std__string__Wrapper(std::move(value));
   }
   
+  // pragma MARK: std::function<void(const CarLocation& /* location */)>
+  /**
+   * Specialized version of `std::function<void(const CarLocation&)>`.
+   */
+  using Func_void_CarLocation = std::function<void(const CarLocation& /* location */)>;
+  /**
+   * Wrapper class for a `std::function<void(const CarLocation& / * location * /)>`, this can be used from Swift.
+   */
+  class Func_void_CarLocation_Wrapper final {
+  public:
+    explicit Func_void_CarLocation_Wrapper(std::function<void(const CarLocation& /* location */)>&& func): _function(std::make_unique<std::function<void(const CarLocation& /* location */)>>(std::move(func))) {}
+    inline void call(CarLocation location) const noexcept {
+      _function->operator()(location);
+    }
+  private:
+    std::unique_ptr<std::function<void(const CarLocation& /* location */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_CarLocation create_Func_void_CarLocation(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_CarLocation_Wrapper wrap_Func_void_CarLocation(Func_void_CarLocation value) noexcept {
+    return Func_void_CarLocation_Wrapper(std::move(value));
+  }
+  
   // pragma MARK: std::shared_ptr<Promise<void>>
   /**
    * Specialized version of `std::shared_ptr<Promise<void>>`.
@@ -453,21 +521,6 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay::bridge::swift {
   Func_void_SafeAreaInsets create_Func_void_SafeAreaInsets(void* NON_NULL swiftClosureWrapper) noexcept;
   inline Func_void_SafeAreaInsets_Wrapper wrap_Func_void_SafeAreaInsets(Func_void_SafeAreaInsets value) noexcept {
     return Func_void_SafeAreaInsets_Wrapper(std::move(value));
-  }
-  
-  // pragma MARK: std::optional<double>
-  /**
-   * Specialized version of `std::optional<double>`.
-   */
-  using std__optional_double_ = std::optional<double>;
-  inline std::optional<double> create_std__optional_double_(const double& value) noexcept {
-    return std::optional<double>(value);
-  }
-  inline bool has_value_std__optional_double_(const std::optional<double>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline double get_std__optional_double_(const std::optional<double>& optional) noexcept {
-    return optional.value();
   }
   
   // pragma MARK: std::optional<NitroColor>
@@ -610,6 +663,15 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay::bridge::swift {
   }
   inline Result_std__function_void____ create_Result_std__function_void____(const std::exception_ptr& error) noexcept {
     return Result<std::function<void()>>::withError(error);
+  }
+  
+  // pragma MARK: Result<std::optional<double>>
+  using Result_std__optional_double__ = Result<std::optional<double>>;
+  inline Result_std__optional_double__ create_Result_std__optional_double__(std::optional<double> value) noexcept {
+    return Result<std::optional<double>>::withValue(std::move(value));
+  }
+  inline Result_std__optional_double__ create_Result_std__optional_double__(const std::exception_ptr& error) noexcept {
+    return Result<std::optional<double>>::withError(error);
   }
   
   // pragma MARK: Result<std::shared_ptr<Promise<void>>>
@@ -1828,6 +1890,21 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay::bridge::swift {
   // pragma MARK: std::weak_ptr<HybridSearchTemplateSpec>
   using std__weak_ptr_HybridSearchTemplateSpec_ = std::weak_ptr<HybridSearchTemplateSpec>;
   inline std__weak_ptr_HybridSearchTemplateSpec_ weakify_std__shared_ptr_HybridSearchTemplateSpec_(const std::shared_ptr<HybridSearchTemplateSpec>& strong) noexcept { return strong; }
+  
+  // pragma MARK: std::optional<GridSectionImageSize>
+  /**
+   * Specialized version of `std::optional<GridSectionImageSize>`.
+   */
+  using std__optional_GridSectionImageSize_ = std::optional<GridSectionImageSize>;
+  inline std::optional<GridSectionImageSize> create_std__optional_GridSectionImageSize_(const GridSectionImageSize& value) noexcept {
+    return std::optional<GridSectionImageSize>(value);
+  }
+  inline bool has_value_std__optional_GridSectionImageSize_(const std::optional<GridSectionImageSize>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline GridSectionImageSize get_std__optional_GridSectionImageSize_(const std::optional<GridSectionImageSize>& optional) noexcept {
+    return optional.value();
+  }
   
   // pragma MARK: std::variant<NitroSection, NitroGridSection>
   /**

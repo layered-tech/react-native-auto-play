@@ -34,6 +34,7 @@ import com.margelo.nitro.swe.iternio.reactnativeautoplay.NitroNavigationAlert
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.TripConfig
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.TripPoint
 import com.margelo.nitro.swe.iternio.reactnativeautoplay.VisibleTravelEstimate
+import com.margelo.nitro.swe.iternio.reactnativeautoplay.utils.TemplateUpdateQueue
 import java.security.InvalidParameterException
 
 class MapTemplate(
@@ -47,6 +48,10 @@ class MapTemplate(
 
     private var alertPriority = 0
     private var alertIds: HashSet<Int> = HashSet()
+    private var visibleAlertId: Int? = null
+    private var reportVisibleAlertDismissedByApp: (() -> Unit)? = null
+    // alerts are shown and dismissed from the JS thread, the host calls them back on the main thread
+    private val alertLock = Any()
 
     init {
         if (initNavigationManager) {
@@ -61,7 +66,7 @@ class MapTemplate(
                 }
 
                 override fun onStopNavigation() {
-                    navigationEnded()
+                    TemplateUpdateQueue.post { navigationEnded() }
 
                     // NavigationManager also stops navigation when its session is destroyed.
                     // That is a disconnect, not the user ending navigation, so JS is not told.
@@ -118,8 +123,7 @@ class MapTemplate(
     }
 
     override fun setTemplateHeaderActions(headerActions: Array<NitroAction>?) {
-        config = config.copy(headerActions = headerActions)
-        super.applyConfigUpdate()
+        updateConfig { it.copy(headerActions = headerActions) }
     }
 
     override fun onWillAppear() {
@@ -144,34 +148,52 @@ class MapTemplate(
     }
 
     fun setMapActions(buttons: Array<NitroMapButton>?) {
-        config = config.copy(mapButtons = buttons)
-        applyConfigUpdate()
+        updateConfig { it.copy(mapButtons = buttons) }
     }
 
     fun setHideControls(hideControls: HideControls) {
-        config = config.copy(hideControls = hideControls)
-        applyConfigUpdate()
+        updateConfig { it.copy(hideControls = hideControls) }
     }
 
-    fun showAlert(alertConfig: NitroNavigationAlert) {
-        if (alertPriority > alertConfig.priority) {
-            // ignore alerts with lower priority than current alert
-            return
-        }
-
+    /**
+     * @return false if the visible alert's priority kept this one from showing
+     */
+    fun showAlert(alertConfig: NitroNavigationAlert): Boolean {
         val title = Parser.parseText(alertConfig.title)
         val durationMillis = alertConfig.durationMs.toLong()
 
+        var isDismissalReported = false
+        val reportDismissal = { reason: AlertDismissalReason ->
+            if (!isDismissalReported) {
+                isDismissalReported = true
+                alertConfig.onDidDismiss?.let { it(reason) }
+            }
+        }
+
+        // highlight as CarPlay does: a cancel primary is plain and the other action stands out; a
+        // lone cancel, or two of them, keep the flag on the primary
+        val isPrimaryCancel = alertConfig.primaryAction.style == AlertActionStyle.CANCEL &&
+            alertConfig.secondaryAction?.let { it.style != AlertActionStyle.CANCEL } == true
+
         val alert = Alert.Builder(alertConfig.id.toInt(), title, durationMillis).apply {
             var isAutoDismissal = false
+            // Android Auto presses the default action right after it reports the timeout, CarPlay
+            // presses nothing
+            var isTimedOut = false
 
             alertConfig.subtitle?.let { subtitle -> setSubtitle(Parser.parseText(subtitle)) }
             alertConfig.image?.let { image -> setIcon(Parser.parseImage(context, image)) }
             addAction(Action.Builder().apply {
                 setTitle(alertConfig.primaryAction.title)
-                setFlags(Action.FLAG_PRIMARY)
+                if (!isPrimaryCancel) {
+                    setFlags(Action.FLAG_PRIMARY)
+                }
                 setFlags(Action.FLAG_DEFAULT)
-                setOnClickListener(alertConfig.primaryAction.onPress)
+                setOnClickListener {
+                    if (!isTimedOut) {
+                        alertConfig.primaryAction.onPress()
+                    }
+                }
                 alertConfig.primaryAction.style?.let { style ->
                     if (style == AlertActionStyle.DESTRUCTIVE) {
                         setBackgroundColor(CarColor.RED)
@@ -181,7 +203,14 @@ class MapTemplate(
             alertConfig.secondaryAction?.let { action ->
                 addAction(Action.Builder().apply {
                     setTitle(action.title)
-                    setOnClickListener(action.onPress)
+                    if (isPrimaryCancel) {
+                        setFlags(Action.FLAG_PRIMARY)
+                    }
+                    setOnClickListener {
+                        if (!isTimedOut) {
+                            action.onPress()
+                        }
+                    }
                     action.style?.let { style ->
                         if (style == AlertActionStyle.DESTRUCTIVE) {
                             setBackgroundColor(CarColor.RED)
@@ -190,18 +219,15 @@ class MapTemplate(
                 }.build())
             }
             setCallback(object : AlertCallback {
-                override fun onCancel(reason: Int) {
+                override fun onCancel(reason: Int) = synchronized(alertLock) {
                     isAutoDismissal = true
                     when (reason) {
-                        AlertCallback.REASON_TIMEOUT -> alertConfig.onDidDismiss?.let {
-                            it(
-                                AlertDismissalReason.TIMEOUT
-                            )
+                        AlertCallback.REASON_TIMEOUT -> {
+                            isTimedOut = true
+                            reportDismissal(AlertDismissalReason.TIMEOUT)
                         }
 
-                        AlertCallback.REASON_USER_ACTION -> alertConfig.onDidDismiss?.let {
-                            it(AlertDismissalReason.USER)
-                        }
+                        AlertCallback.REASON_USER_ACTION -> reportDismissal(AlertDismissalReason.USER)
 
                         AlertCallback.REASON_NOT_SUPPORTED -> {
                             // we make sure that this can be called on navigation templates already so this should never happen
@@ -209,35 +235,54 @@ class MapTemplate(
                     }
                 }
 
-                override fun onDismiss() {
+                override fun onDismiss() = synchronized(alertLock) {
                     alertIds.remove(alertConfig.id.toInt())
                     if (alertIds.isEmpty()) {
                         alertPriority = 0
                     }
 
                     if (!isAutoDismissal) {
-                        alertConfig.onDidDismiss?.let {
-                            it(AlertDismissalReason.USER)
-                        }
+                        // an action press; a dismissal by the app has been reported already
+                        reportDismissal(AlertDismissalReason.USER)
                     }
                 }
             })
         }.build()
 
-        if (!alertIds.contains(alert.id)) {
-            alertConfig.onWillShow?.let { it() }
-            alertIds.add(alert.id)
-            alertPriority = alertConfig.priority.toInt()
-        }
+        return synchronized(alertLock) {
+            if (alertPriority > alertConfig.priority) {
+                // ignore alerts with lower priority than current alert
+                return false
+            }
 
-        context.getCarService(AppManager::class.java).showAlert(alert)
+            if (!alertIds.contains(alert.id)) {
+                // the host reports the dismissal of the alert this one replaces only after this one
+                // shows, so report it first, in the order CarPlay does
+                reportVisibleAlertDismissedByApp?.let { it() }
+                alertConfig.onWillShow?.let { it() }
+                alertIds.add(alert.id)
+            }
+            alertPriority = alertConfig.priority.toInt()
+            visibleAlertId = alert.id
+            reportVisibleAlertDismissedByApp = { reportDismissal(AlertDismissalReason.SYSTEM) }
+
+            context.getCarService(AppManager::class.java).showAlert(alert)
+            true
+        }
+    }
+
+    fun dismissAlert(alertId: Int) = synchronized(alertLock) {
+        if (alertId == visibleAlertId) {
+            // the host reports this as it does an action press, so report it here
+            reportVisibleAlertDismissedByApp?.let { it() }
+        }
+        context.getCarService(AppManager::class.java).dismissAlert(alertId)
     }
 
     fun updateVisibleTravelEstimate(
         visibleTravelEstimate: VisibleTravelEstimate
     ) {
-        config = config.copy(visibleTravelEstimate = visibleTravelEstimate)
-        applyConfigUpdate()
+        updateConfig { it.copy(visibleTravelEstimate = visibleTravelEstimate) }
     }
 
     companion object {

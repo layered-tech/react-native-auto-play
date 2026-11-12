@@ -6,6 +6,7 @@
 //
 
 import CarPlay
+import NitroModules
 
 class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
     var template: CPSearchTemplate
@@ -126,11 +127,6 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
         _ searchTemplate: CPSearchTemplate
     ) {
 
-        if config.handlesSubmittedResults == true {
-            config.onSearchTextSubmitted(searchText)
-            return
-        }
-
         // Create a new ListTemplate with the search results
         let listConfig = ListTemplateConfig(
             id: "\(config.id)-results",
@@ -153,8 +149,8 @@ class SearchTemplate: AutoPlayTemplate, CPSearchTemplateDelegate {
         // execute callback after creating the template to avoid race condition in updateSearchResults
         config.onSearchTextSubmitted(searchText)
 
-        // Push the template
-        Task { @MainActor in
+        // queued so it keeps its order against pushes and pops the submit handler issues from JS
+        let _: Promise<Void> = TemplateUpdateQueue.enqueue {
             do {
                 try await RootModule.withSceneAndInterfaceController {
                     scene,

@@ -74,8 +74,8 @@ Stack operations not tied to a single template live on `HybridAutoPlay`: `popTem
     followed by `startNavigation(B)`. So JS starts are handed to CarPlay on the next main queue
     turn (back to back starts collapse to the last trip), and a session is never replaced, nor
     a new one started after a stop, before it is `minimumSessionAge` (300 ms) old.
-  - All `HybridMapTemplate` calls hop to the main queue in JS call order; session updates sent
-    while a start is pending are replayed once it ran (`performWithNavigationSession`).
+  - All `HybridMapTemplate` calls go through `TemplateUpdateQueue` in JS call order; session
+    updates sent while a start is pending are replayed once it ran (`performWithNavigationSession`).
   - A session still active on scene connect or disconnect is finished; the scene can reconnect
     without a disconnect after the app was in the background. JS is not notified
     (`onStopNavigation` only reports CarPlay cancelling navigation), so apps have to start
@@ -167,8 +167,13 @@ so a cluster must read its own id from props rather than assume a constant.
    keeps timers running while the car surface is active, replacing a permanently-pending
    headless task that used to exist purely to satisfy Android's `JavaTimerManager`.
 2. The app creates templates and calls `template.setRootTemplate()`.
-3. Connection events: `HybridAutoPlay.addListener('didConnect' | 'didDisconnect', cb)`.
-   Query with `isConnected()` and `isCarServiceRunning()` — the latter distinguishes a
-   car-triggered start from e.g. a notification-triggered one.
+3. Connection events: `HybridAutoPlay.addListener('didConnect' | 'didDisconnect', cb)`,
+   where `cb(sessionId)` gets the id of the head unit session that connected or ended (a new
+   one per connect, none for dashboard and cluster). Query with `getCurrentSessionId()`,
+   `isConnected()` and `isCarServiceRunning()` — the latter distinguishes a car-triggered
+   start from e.g. a notification-triggered one. A disconnect frees the session's templates,
+   so a `didConnect` listener re-checks `getCurrentSessionId() === sessionId` after every
+   `await`: an app launched from CarPlay only is suspended mid-`await` on disconnect and
+   resumes in a later session or none (README → *Create the AutoPlay Experience*).
 4. Per-surface visibility: `addListenerRenderState(moduleName, cb)`; safe area:
    `addSafeAreaInsetsListener(moduleName, cb)`.

@@ -24,8 +24,10 @@
 #include "JHybridAndroidWindowInformationSpec.hpp"
 #include "JFunc_void_WindowInformation.hpp"
 #include "JHybridAutoPlaySpec.hpp"
+#include "JFunc_void_double.hpp"
 #include "JFunc_void_VisibilityState.hpp"
 #include "JFunc_void_std__optional_Location__std__optional_std__string_.hpp"
+#include "JFunc_void_CarLocation.hpp"
 #include "JFunc_void_SafeAreaInsets.hpp"
 #include "JHybridAutoPlayTimingSpec.hpp"
 #include "JHybridClusterSpec.hpp"
@@ -197,8 +199,10 @@ void registerAllNatives() {
   margelo::nitro::swe::iternio::reactnativeautoplay::JHybridAndroidWindowInformationSpec::CxxPart::registerNatives();
   margelo::nitro::swe::iternio::reactnativeautoplay::JFunc_void_WindowInformation_cxx::registerNatives();
   margelo::nitro::swe::iternio::reactnativeautoplay::JHybridAutoPlaySpec::CxxPart::registerNatives();
+  margelo::nitro::swe::iternio::reactnativeautoplay::JFunc_void_double_cxx::registerNatives();
   margelo::nitro::swe::iternio::reactnativeautoplay::JFunc_void_VisibilityState_cxx::registerNatives();
   margelo::nitro::swe::iternio::reactnativeautoplay::JFunc_void_std__optional_Location__std__optional_std__string__cxx::registerNatives();
+  margelo::nitro::swe::iternio::reactnativeautoplay::JFunc_void_CarLocation_cxx::registerNatives();
   margelo::nitro::swe::iternio::reactnativeautoplay::JFunc_void_SafeAreaInsets_cxx::registerNatives();
   margelo::nitro::swe::iternio::reactnativeautoplay::JHybridAutoPlayTimingSpec::CxxPart::registerNatives();
   margelo::nitro::swe::iternio::reactnativeautoplay::JHybridClusterSpec::CxxPart::registerNatives();

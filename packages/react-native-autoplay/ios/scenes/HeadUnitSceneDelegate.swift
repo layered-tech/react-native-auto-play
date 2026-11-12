@@ -9,8 +9,30 @@ import Foundation
 
 @objc(HeadUnitSceneDelegate)
 class HeadUnitSceneDelegate: AutoPlayScene, CPTemplateApplicationSceneDelegate {
+    private var sessionId: Int?
+
     override init() {
         super.init(moduleName: SceneStore.rootModuleName)
+    }
+
+    private func startSession() {
+        let sessionId = SceneStore.startRootSession()
+        self.sessionId = sessionId
+        HybridAutoPlay.emit(event: .didconnect, sessionId: sessionId)
+    }
+
+    private func endSession() {
+        guard let sessionId = sessionId else { return }
+        self.sessionId = nil
+
+        /// a newer session is current already, JS must not see it as disconnected
+        if !SceneStore.endRootSession(sessionId: sessionId) {
+            return
+        }
+
+        /// only for the current session, a late disconnect must not unblock the newer session's queue
+        TemplateUpdateQueue.reset()
+        HybridAutoPlay.emit(event: .diddisconnect, sessionId: sessionId)
     }
 
     func templateApplicationScene(
@@ -18,6 +40,8 @@ class HeadUnitSceneDelegate: AutoPlayScene, CPTemplateApplicationSceneDelegate {
         didConnect interfaceController: CPInterfaceController,
         to window: CPWindow
     ) {
+        TemplateUpdateQueue.reset()
+
         self.window = window
         self.interfaceController = AutoPlayInterfaceController(
             interfaceController: interfaceController
@@ -35,13 +59,15 @@ class HeadUnitSceneDelegate: AutoPlayScene, CPTemplateApplicationSceneDelegate {
 
         stopStaleNavigationOnConnect()
         connect(props: props)
-        HybridAutoPlay.emit(event: .didconnect)
+        startSession()
     }
 
     func templateApplicationScene(
         _ templateApplicationScene: CPTemplateApplicationScene,
         didConnect interfaceController: CPInterfaceController
     ) {
+        TemplateUpdateQueue.reset()
+
         self.interfaceController = AutoPlayInterfaceController(
             interfaceController: interfaceController
         )
@@ -50,7 +76,7 @@ class HeadUnitSceneDelegate: AutoPlayScene, CPTemplateApplicationSceneDelegate {
             "colorScheme": interfaceController.carTraitCollection
                 .userInterfaceStyle == .dark ? "dark" : "light"
         ])
-        HybridAutoPlay.emit(event: .didconnect)
+        startSession()
     }
 
     func templateApplicationScene(
@@ -60,8 +86,7 @@ class HeadUnitSceneDelegate: AutoPlayScene, CPTemplateApplicationSceneDelegate {
     ) {
         stopNavigationOnDisconnect()
         disconnect()
-
-        HybridAutoPlay.emit(event: .diddisconnect)
+        endSession()
     }
 
     func templateApplicationScene(
@@ -70,7 +95,7 @@ class HeadUnitSceneDelegate: AutoPlayScene, CPTemplateApplicationSceneDelegate {
             CPInterfaceController
     ) {
         disconnect()
-        HybridAutoPlay.emit(event: .diddisconnect)
+        endSession()
     }
 
     private var rootMapTemplate: MapTemplate? {

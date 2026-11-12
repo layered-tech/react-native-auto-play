@@ -1,5 +1,6 @@
 import type { HybridObject } from 'react-native-nitro-modules';
 import type { TemplateConfig } from '../templates/Template';
+import type { CarLocation } from '../types/CarLocation';
 import type {
   CleanupCallback,
   EventName,
@@ -18,9 +19,19 @@ export interface AutoPlay extends HybridObject<{ android: 'kotlin'; ios: 'swift'
    * attach a listener for didConnect and didDisconnect
    * @namespace all
    * @param eventType generic events
+   * @param callback receives the id of the session that connected or disconnected, see getCurrentSessionId
    * @returns callback to remove the listener
    */
-  addListener(eventType: EventName, callback: () => void): CleanupCallback;
+  addListener(eventType: EventName, callback: (sessionId: number) => void): CleanupCallback;
+
+  /**
+   * The id of the connected head unit session, a new one is assigned on every connect.
+   * Compare it with the id didConnect passed after any await, a mismatch means the session the
+   * listener was called for is gone and its templates were freed.
+   * @namespace all
+   * @returns the session id, undefined while no head unit is connected
+   */
+  getCurrentSessionId(): number | undefined;
 
   /**
    * adds a listener for the session/scene state
@@ -43,6 +54,18 @@ export interface AutoPlay extends HybridObject<{ android: 'kotlin'; ios: 'swift'
   addListenerVoiceInput(
     callback: (coordinates: Location | undefined, query: string | undefined) => void
   ): CleanupCallback;
+
+  /**
+   * Streams the head unit's own location (Android Auto CarSensors, fastest rate) while a head unit
+   * is connected and at least one listener is registered. A new listener first receives the last
+   * non-success status, if any. Adding a listener retries a failed registration, e.g. after the
+   * location permission was granted.
+   * No-op on iOS and Android Automotive, where the platform location already is the car's.
+   * @param callback receives every fix and every status change
+   * @returns callback to remove the listener
+   * @namespace Android
+   */
+  addListenerCarLocation(callback: (location: CarLocation) => void): CleanupCallback;
 
   /**
    * sets the specified template as root template, initializes a new stack

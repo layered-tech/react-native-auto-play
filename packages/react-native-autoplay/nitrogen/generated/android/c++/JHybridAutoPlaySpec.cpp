@@ -13,6 +13,10 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class EventNa
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class VisibilityState; }
 // Forward declaration of `Location` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct Location; }
+// Forward declaration of `CarLocation` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct CarLocation; }
+// Forward declaration of `CarLocationStatus` to properly resolve imports.
+namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class CarLocationStatus; }
 // Forward declaration of `SafeAreaInsets` to properly resolve imports.
 namespace margelo::nitro::swe::iternio::reactnativeautoplay { struct SafeAreaInsets; }
 // Forward declaration of `NitroAction` to properly resolve imports.
@@ -35,19 +39,25 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay { enum class NitroBu
 #include <functional>
 #include "JFunc_void.hpp"
 #include <NitroModules/JNICallable.hpp>
+#include <optional>
 #include <NitroModules/Promise.hpp>
 #include <NitroModules/JPromise.hpp>
 #include <NitroModules/JUnit.hpp>
 #include "EventName.hpp"
 #include "JEventName.hpp"
+#include "JFunc_void_double.hpp"
 #include <string>
 #include "VisibilityState.hpp"
 #include "JFunc_void_VisibilityState.hpp"
 #include "JVisibilityState.hpp"
 #include "Location.hpp"
-#include <optional>
 #include "JFunc_void_std__optional_Location__std__optional_std__string_.hpp"
 #include "JLocation.hpp"
+#include "CarLocation.hpp"
+#include "JFunc_void_CarLocation.hpp"
+#include "JCarLocation.hpp"
+#include "CarLocationStatus.hpp"
+#include "JCarLocationStatus.hpp"
 #include "SafeAreaInsets.hpp"
 #include "JFunc_void_SafeAreaInsets.hpp"
 #include "JSafeAreaInsets.hpp"
@@ -104,9 +114,9 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
   
 
   // Methods
-  std::function<void()> JHybridAutoPlaySpec::addListener(EventName eventType, const std::function<void()>& callback) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JEventName> /* eventType */, jni::alias_ref<JFunc_void::javaobject> /* callback */)>("addListener_cxx");
-    auto __result = method(_javaPart, JEventName::fromCpp(eventType), JFunc_void_cxx::fromCpp(callback));
+  std::function<void()> JHybridAutoPlaySpec::addListener(EventName eventType, const std::function<void(double /* sessionId */)>& callback) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JEventName> /* eventType */, jni::alias_ref<JFunc_void_double::javaobject> /* callback */)>("addListener_cxx");
+    auto __result = method(_javaPart, JEventName::fromCpp(eventType), JFunc_void_double_cxx::fromCpp(callback));
     return [&]() -> std::function<void()> {
       if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
         auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
@@ -116,6 +126,11 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
         return JNICallable<JFunc_void, void()>(std::move(__resultRef));
       }
     }();
+  }
+  std::optional<double> JHybridAutoPlaySpec::getCurrentSessionId() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<jni::JDouble>()>("getCurrentSessionId");
+    auto __result = method(_javaPart);
+    return __result != nullptr ? std::make_optional(__result->value()) : std::nullopt;
   }
   std::function<void()> JHybridAutoPlaySpec::addListenerRenderState(const std::string& moduleName, const std::function<void(VisibilityState /* payload */)>& callback) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<jni::JString> /* moduleName */, jni::alias_ref<JFunc_void_VisibilityState::javaobject> /* callback */)>("addListenerRenderState_cxx");
@@ -133,6 +148,19 @@ namespace margelo::nitro::swe::iternio::reactnativeautoplay {
   std::function<void()> JHybridAutoPlaySpec::addListenerVoiceInput(const std::function<void(const std::optional<Location>& /* coordinates */, const std::optional<std::string>& /* query */)>& callback) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_std__optional_Location__std__optional_std__string_::javaobject> /* callback */)>("addListenerVoiceInput_cxx");
     auto __result = method(_javaPart, JFunc_void_std__optional_Location__std__optional_std__string__cxx::fromCpp(callback));
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
+  }
+  std::function<void()> JHybridAutoPlaySpec::addListenerCarLocation(const std::function<void(const CarLocation& /* location */)>& callback) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>(jni::alias_ref<JFunc_void_CarLocation::javaobject> /* callback */)>("addListenerCarLocation_cxx");
+    auto __result = method(_javaPart, JFunc_void_CarLocation_cxx::fromCpp(callback));
     return [&]() -> std::function<void()> {
       if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
         auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
